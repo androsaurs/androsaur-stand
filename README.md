@@ -17,6 +17,7 @@
 ![Макет подставки](cad/assemblies/exports/stand-isometric.png)
 
 - [Как открыть, двигать и редактировать модель](docs/working-with-model.md)
+- [Требования владельца по итогам интервью](docs/requirements.md)
 - [Названия деталей, сборок и экземпляров](docs/part-names.md)
 - [Принятая для макета конструкция и допущения](docs/design.md)
 - [Оси и интерфейсы](docs/interfaces.md)
@@ -27,6 +28,7 @@
 - [Положение с поворотом и наклоном](cad/assemblies/exports/stand-pose.png)
 - [Открытое основание](cad/assemblies/exports/stand-cutaway.png)
 - [Исходный концепт](references/concepts/androsaur-stand-v3.svg)
+- [Каталог оригиналов и правила их хранения](references/README.md)
 - [Сервопривод по чертежу 352944](cad/components/servo-reference/README.md)
 
 Это первый полный макет с допущениями, предназначенный для редактирования

@@ -1,8 +1,10 @@
 # Исходные размеры компонентов
 
-Сервопривод построен по чертежу:
-https://forum.freecad.org/download/file.php?id=352944.
-Допущения: `../../cad/components/servo-reference/README.md`.
+Сервопривод построен по [локальному чертежу 352944](servo-reference/drawing-352944.jpg).
+[Происхождение и контрольная сумма](servo-reference/README.md).
+[Допущения модели](../../cad/components/servo-reference/README.md).
+
+Общие правила хранения оригиналов — в [references/README.md](../README.md).
 
 Артикулы телефона, серво, подшипников, плат и питания пока не подтверждены.
 Не считать габаритные макеты паспортами покупных компонентов.

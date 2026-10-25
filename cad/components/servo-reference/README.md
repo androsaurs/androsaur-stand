@@ -1,6 +1,9 @@
 # Модель сервопривода по чертежу 352944
 
-Источник: https://forum.freecad.org/download/file.php?id=352944
+Исходный чертёж сохранён в проекте:
+[drawing-352944.jpg](../../../references/datasheets/servo-reference/drawing-352944.jpg).
+[Сведения об источнике и SHA-256](../../../references/datasheets/servo-reference/README.md).
+Внешний адрес для справки: https://forum.freecad.org/download/file.php?id=352944.
 
 Габаритная модель для компоновки и проектирования крепления. Единицы — мм.
 Производитель и точная модель сервопривода неизвестны.
