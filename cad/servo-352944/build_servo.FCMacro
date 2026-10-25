@@ -1,0 +1,90 @@
+import FreeCAD as App
+import Part
+import Import
+import os
+
+out = os.path.dirname(os.path.abspath(__file__))
+doc = App.newDocument('Servo352944')
+p = doc.addObject('Spreadsheet::Sheet', 'Dimensions')
+p.Label = 'Dimensions (mm); estimated values marked ASSUMED'
+rows = [
+ ('BodyLength',40.8,'Drawing: side view'),
+ ('BodyWidth',20,'Drawing'),
+ ('EarSpan',53.4,'Drawing'),
+ ('MountPitchX',48.2,'Drawing'),
+ ('MountPitchY',9.9,'Drawing'),
+ ('SlotDiameter',4.4,'Drawing'),
+ ('SlotOpening',2.8,'Drawing: open throat width'),
+ ('EarBottom',26.7,'Drawing: bottom to mounting underside'),
+ ('EarThickness',2.5,'Drawing'),
+ ('ShoulderHeight',38.4,'Drawing: bottom to top shoulder, excludes shaft'),
+ ('ShaftHeight',3.5,'Drawing: protrusion above shoulder'),
+ ('ShaftAxisFromEnd',16.6,'Drawing: measured from outer ear end'),
+ ('UpperStepToShaftTop',9.2,'Drawing'),
+ ('BodyTopLength',40.3,'Drawing: upper housing length'),
+ ('ShaftDiameter',6,'ASSUMED; spline geometry not specified'),
+ ('BossDiameter',18,'ASSUMED from image'),
+ ('BossHeight',1.8,'ASSUMED from image'),
+ ('TopStepHeight',2.5,'ASSUMED from image'),
+ ('TopStepWidth',18,'ASSUMED from image'),
+]
+p.set('A1','Parameter'); p.set('B1','mm'); p.set('C1','Source / assumption')
+for row,(key,value,note) in enumerate(rows,2):
+ p.set('A'+str(row),key); p.set('B'+str(row),str(value)+' mm'); p.setAlias('B'+str(row),key); p.set('C'+str(row),note)
+p.setColumnWidth('A',210); p.setColumnWidth('B',90); p.setColumnWidth('C',440)
+doc.recompute()
+
+def box(name,length,width,height,x,y,z):
+ o=doc.addObject('Part::Box',name)
+ for prop,expr in [('Length',length),('Width',width),('Height',height),('Placement.Base.x',x),('Placement.Base.y',y),('Placement.Base.z',z)]: o.setExpression(prop,expr)
+ return o
+
+def cylinder(name,radius,height,x,y,z):
+ o=doc.addObject('Part::Cylinder',name)
+ for prop,expr in [('Radius',radius),('Height',height),('Placement.Base.x',x),('Placement.Base.y',y),('Placement.Base.z',z)]: o.setExpression(prop,expr)
+ return o
+
+D='Dimensions.'
+axis='Dimensions.ShaftAxisFromEnd - Dimensions.EarSpan / 2'
+ledge='Dimensions.ShoulderHeight + Dimensions.ShaftHeight - Dimensions.UpperStepToShaftTop'
+body=box('MainHousing',D+'BodyLength',D+'BodyWidth',ledge,'-Dimensions.BodyLength / 2','-Dimensions.BodyWidth / 2','0 mm')
+ears=box('MountingFlange',D+'EarSpan',D+'BodyWidth',D+'EarThickness','-Dimensions.EarSpan / 2','-Dimensions.BodyWidth / 2',D+'EarBottom')
+upper=box('UpperCover',D+'BodyTopLength',D+'TopStepWidth',D+'TopStepHeight','-Dimensions.BodyTopLength / 2','-Dimensions.TopStepWidth / 2',ledge)
+boss=cylinder('OutputBoss',D+'BossDiameter / 2','Dimensions.ShoulderHeight - ('+ledge+') - Dimensions.TopStepHeight',axis,'0 mm','('+ledge+') + Dimensions.TopStepHeight')
+rear=box('GearCoverStep','15 mm','15 mm','Dimensions.ShoulderHeight - Dimensions.BossHeight - ('+ledge+') - Dimensions.TopStepHeight','0 mm','-7.5 mm','('+ledge+') + Dimensions.TopStepHeight')
+housing=doc.addObject('Part::MultiFuse','HousingBlank'); housing.Shapes=[body,ears,upper,boss,rear]; housing.Refine=True
+tools=[]
+for ix in [-1,1]:
+ for iy in [-1,1]:
+  suffix=('L' if ix<0 else 'R')+('F' if iy<0 else 'B')
+  x=str(ix)+' * Dimensions.MountPitchX / 2'
+  y=str(iy)+' * Dimensions.MountPitchY / 2'
+  hole=cylinder('SlotRound'+suffix,D+'SlotDiameter / 2','Dimensions.EarThickness + 2 mm',x,y,'Dimensions.EarBottom - 1 mm')
+  start='-Dimensions.EarSpan / 2 - 1 mm' if ix<0 else x
+  throat=box('SlotThroat'+suffix,'(Dimensions.EarSpan - Dimensions.MountPitchX) / 2 + 1 mm',D+'SlotOpening','Dimensions.EarThickness + 2 mm',start,'('+y+') - Dimensions.SlotOpening / 2','Dimensions.EarBottom - 1 mm')
+  tools.extend([hole,throat])
+cutters=doc.addObject('Part::MultiFuse','SlotTools'); cutters.Shapes=tools
+case=doc.addObject('Part::Cut','Housing'); case.Base=housing; case.Tool=cutters; case.Refine=True
+case.Label='Servo housing — drawing 352944'
+shaft=cylinder('OutputShaft',D+'ShaftDiameter / 2',D+'ShaftHeight',axis,'0 mm',D+'ShoulderHeight')
+shaft.Label='Output shaft — smooth substitute for unspecified 24T spline'
+shaft.addProperty('App::PropertyInteger','SplineTeeth','Reference'); shaft.SplineTeeth=24
+assembly=doc.addObject('App::Part','Servo'); assembly.addObject(case); assembly.addObject(shaft)
+assembly.addProperty('App::PropertyString','Source','Reference'); assembly.Source='https://forum.freecad.org/download/file.php?id=352944'
+assembly.addProperty('App::PropertyString','Notes','Reference'); assembly.Notes='Envelope model. Decorative steps estimated. No cable, screw holes or exact spline profile. Shaft axis referenced to outer mounting ear end. See Dimensions and README.md.'
+doc.recompute()
+for o in [body,ears,upper,boss,rear,housing,cutters]+tools: o.Visibility=False
+case.ViewObject.ShapeColor=(0.16,0.18,0.22); shaft.ViewObject.ShapeColor=(0.78,0.76,0.65)
+case.Visibility=True; shaft.Visibility=True
+for o in [case,shaft]:
+ assert not o.Shape.isNull() and o.Shape.isValid(), o.Name+' invalid'
+ assert len(o.Shape.Solids)==1, o.Name+' is not a single solid'
+print('Housing bounds:',case.Shape.BoundBox)
+print('Shaft bounds:',shaft.Shape.BoundBox)
+print('Housing volume:',case.Shape.Volume)
+Gui.activeDocument().activeView().viewAxonometric(); Gui.activeDocument().activeView().fitAll()
+doc.recompute()
+doc.saveAs(os.path.join(out,'servo-352944.FCStd'))
+Import.export([case,shaft],os.path.join(out,'servo-352944.step'))
+Gui.activeDocument().activeView().saveImage(os.path.join(out,'preview.png'),1200,900,'White')
+print('Saved FCStd, STEP and preview to '+out)

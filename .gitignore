@@ -1,0 +1,7 @@
+# FreeCAD backup and lock files
+*.FCStd1
+*.FCStd[0-9]*
+*.FCBak
+*.FCStd.*
+*.lck
+__pycache__/
