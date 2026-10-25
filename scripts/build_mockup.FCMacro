@@ -1,0 +1,408 @@
+"""Build the editable Androsaur concept assembly in FreeCAD GUI.
+
+Run using the FreeCAD macro menu. Existing target files are protected by default.
+"""
+import os
+import json
+import math
+import csv
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+import Import
+import Mesh
+import TechDraw
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OVERWRITE = globals().get('ANDROSAUR_OVERWRITE', False)
+V = App.Vector
+GREEN = (0.38, 0.69, 0.59)
+DARK = (0.16, 0.19, 0.23)
+METAL = (0.69, 0.73, 0.79)
+BLUE = (0.23, 0.43, 0.68)
+MODEL_DOCS = []
+ITEMS = {}
+BOM = []
+REPORT = {'shape_checks': [], 'motion_checks': [], 'assumptions': 'docs/design.md'}
+
+def folder(path):
+    path = os.path.join(ROOT, path)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+def newdoc(name, relative):
+    path = os.path.join(ROOT, relative)
+    if os.path.exists(path) and not OVERWRITE:
+        raise RuntimeError('Existing file protected: ' + path)
+    if name in App.listDocuments():
+        raise RuntimeError('Close document before rebuilding: ' + name)
+    doc = App.newDocument(name)
+    MODEL_DOCS.append(doc)
+    return doc
+
+def params(doc, values):
+    sheet = doc.addObject('Spreadsheet::Sheet', 'Dimensions')
+    sheet.set('A1', 'Parameter'); sheet.set('B1', 'Value (mm)')
+    for i, (name, val) in enumerate(values.items(), 2):
+        sheet.set('A' + str(i), name)
+        sheet.set('B' + str(i), str(val) + ' mm')
+        sheet.setAlias('B' + str(i), name)
+    sheet.setColumnWidth('A', 230); sheet.setColumnWidth('B', 120)
+    doc.recompute()
+    return sheet
+
+def expr(obj, prop, val):
+    if isinstance(val, str):
+        obj.setExpression(prop, val)
+    elif prop.startswith('Placement.Base.'):
+        place = obj.Placement
+        setattr(place.Base, prop[-1], val)
+        obj.Placement = place
+    else:
+        setattr(obj, prop, val)
+
+def box(doc, name, l, w, h, x=0, y=0, z=0):
+    obj = doc.addObject('Part::Box', name)
+    for prop, val in [('Length', l), ('Width', w), ('Height', h),
+                      ('Placement.Base.x', x), ('Placement.Base.y', y), ('Placement.Base.z', z)]:
+        expr(obj, prop, val)
+    return obj
+
+def cyl(doc, name, r, h, x=0, y=0, z=0, direction=None):
+    obj = doc.addObject('Part::Cylinder', name)
+    if direction:
+        obj.Placement = App.Placement(V(x, y, z), App.Rotation(V(0,0,1), V(*direction)))
+    for prop, val in [('Radius', r), ('Height', h),
+                      ('Placement.Base.x', x), ('Placement.Base.y', y), ('Placement.Base.z', z)]:
+        expr(obj, prop, val)
+    return obj
+
+def fuse(doc, name, objects):
+    if len(objects) == 1:
+        return objects[0]
+    obj = doc.addObject('Part::MultiFuse', name); obj.Shapes = objects; obj.Refine = True
+    return obj
+
+def cut(doc, name, base, tools):
+    obj = doc.addObject('Part::Cut', name)
+    obj.Base = base; obj.Tool = fuse(doc, name + 'Tools', tools); obj.Refine = True
+    return obj
+
+def finish(doc, obj, key, category, title, note, color=GREEN):
+    doc.recompute()
+    assert not obj.Shape.isNull() and obj.Shape.isValid(), key + ' has invalid geometry'
+    assert len(obj.Shape.Solids) == 1, key + ' must be one solid'
+    for item in doc.Objects:
+        if hasattr(item, 'ViewObject') and hasattr(item, 'Shape'):
+            item.Visibility = False
+    obj.Label = title
+    obj.addProperty('App::PropertyString', 'Assumptions', 'Documentation'); obj.Assumptions = note
+    obj.addProperty('App::PropertyString', 'PartID', 'Documentation'); obj.PartID = key
+    obj.Visibility = True
+    obj.ViewObject.ShapeColor = color
+    obj.ViewObject.LineColor = (0.12, 0.15, 0.17)
+    path = folder('cad/' + category + '/' + key)
+    doc.recompute()
+    doc.saveAs(os.path.join(path, key + '.FCStd'))
+    Import.export([obj], os.path.join(path, key + '.step'))
+    if category == 'parts':
+        Mesh.export([obj], os.path.join(path, key + '.stl'))
+    svg_views = []
+    bb = obj.Shape.BoundBox
+    scale = min(2.3, 210 / max(bb.XLength, bb.YLength, bb.ZLength))
+    for label, direction, tx, ty in [('Front', V(0,-1,0), 150, 180), ('Right', V(1,0,0), 420, 180), ('Top', V(0,0,1), 150, 430)]:
+        centered = obj.Shape.copy()
+        centered.translate(-bb.Center)
+        svg_views.append('<text x="%s" y="%s">%s</text><g transform="translate(%s,%s) scale(%s,-%s)">%s</g>' %
+                         (tx-60,ty-120,label,tx,ty,scale,scale,TechDraw.projectToSVG(centered,direction)))
+    with open(os.path.join(path,key+'-views.svg'),'w') as f:
+        f.write('<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">'
+                '<rect width="600" height="600" fill="white"/><g fill="black" font-family="sans-serif" font-size="13">'
+                '<text x="20" y="25">'+key+' — CONCEPT / mm</text>'
+                '<text x="20" y="550">Envelope X/Y/Z: %.2f / %.2f / %.2f mm</text>' % (bb.XLength,bb.YLength,bb.ZLength)
+                +'<text x="20" y="575">Reference views only; dimensions in FCStd spreadsheet.</text>'
+                +''.join(svg_views)+'</g></svg>')
+    with open(os.path.join(path, 'README.md'), 'w') as f:
+        f.write('# ' + title + '\n\nСтатус: макет, не проверен изготовлением.\n\n' + note + '\n\n'
+                'Размеры: таблица `Dimensions`; дерево построения редактируемое. '
+                'STEP/STL обновляются при экспорте, а не автоматически.\n')
+    ITEMS[key] = obj
+    REPORT['shape_checks'].append({'id': key, 'solids': 1, 'valid': True, 'volume_mm3': round(obj.Shape.Volume, 3)})
+    return obj
+
+def begin(key, values, category='parts'):
+    doc = newdoc('AS_' + key.replace('-', '_'), 'cad/' + category + '/' + key + '/' + key + '.FCStd')
+    params(doc, values)
+    return doc
+
+# Base: removable bottom, hollow shell, cover, rubber feet.
+d = begin('base-shell', {'OuterRadius':70, 'Wall':3, 'Height':62})
+outer = cyl(d,'Outer','Dimensions.OuterRadius','Dimensions.Height')
+inner = cyl(d,'Cavity','Dimensions.OuterRadius - Dimensions.Wall','Dimensions.Height + 2 mm',z=-1)
+ring = cut(d,'Shell',outer,[inner])
+bosses = [cyl(d,'ScrewBoss',4,62,x,y) for x,y in [(60,28),(-60,28),(60,-28),(-60,-28)]]
+shell = fuse(d,'ShellWithBosses',[ring]+bosses)
+holes = [cyl(d,'PilotHole',1.3,64,x,y,-1) for x,y in [(60,28),(-60,28),(60,-28),(-60,-28)]]
+holes += [box(d,'PowerCableEntry',12,10,7,-6,64,4)]
+finish(d,cut(d,'Result',shell,holes),'base-shell','parts','Корпус основания',
+       'Ø140, стенка 3 мм, высота 62 мм. Четыре винтовые бобышки. Материал условно PETG.')
+
+for key, top in [('base-bottom',False),('base-cover',True)]:
+    d = begin(key,{'Radius':70,'Thickness':4})
+    blank = cyl(d,'Plate','Dimensions.Radius','Dimensions.Thickness')
+    holes = [cyl(d,'FastenerClearance',1.7,6,x,y,-1) for x,y in [(60,28),(-60,28),(60,-28),(-60,-28)]]
+    if top:
+        holes.append(cyl(d,'DriveOpening',11,6,z=-1))
+        holes.append(cyl(d,'CableOpening',5,6,0,51,-1))
+    else:
+        holes += [cyl(d,'FootHole',1.7,6,x,y,-1) for x,y in [(42,36),(-42,36),(42,-36),(-42,-36)]]
+    finish(d,cut(d,'Result',blank,holes),key,'parts','Крышка основания' if top else 'Дно основания',
+           'Съёмная пластина 4 мм. Отверстия под M3 с зазором; резьба в бобышках корпуса условная.')
+
+d = begin('foot',{'Radius':9,'Height':8,'HoleRadius':1.7})
+finish(d,cut(d,'Result',cyl(d,'Rubber','Dimensions.Radius','Dimensions.Height'),
+       [cyl(d,'Hole','Dimensions.HoleRadius',10,z=-1)]),'foot','parts','Ножка',
+       'Четыре одинаковых экземпляра. Материал TPU либо покупные резиновые ножки.',DARK)
+
+d = begin('pan-servo-mount',{'Width':60,'Depth':24,'Plate':4,'PostHeight':46.8,'MotorAxisOffset':10.1})
+plate=box(d,'Plate','Dimensions.Width','Dimensions.Depth','Dimensions.Plate','-Dimensions.Width / 2 + Dimensions.MotorAxisOffset','-Dimensions.Depth / 2')
+posts=[cyl(d,'Post',3.2,'Dimensions.PostHeight',str(x)+' mm + Dimensions.MotorAxisOffset',y,4) for x in [-24.1,24.1] for y in [-4.95,4.95]]
+mount=fuse(d,'Bracket',[plate]+posts)
+holes=[cyl(d,'ServoScrew',1.3,54,str(x)+' mm + Dimensions.MotorAxisOffset',y,-1) for x in [-24.1,24.1] for y in [-4.95,4.95]]
+finish(d,cut(d,'Result',mount,holes),'pan-servo-mount','parts','Кронштейн серво поворота',
+       'Четыре стойки под ушки эталонного серво. Крепление площадки к дну в макете условно клеевое.')
+
+d = begin('turntable',{'Radius':55,'Thickness':4})
+holes=[cyl(d,'CentralScrew',1.7,6,z=-1),cyl(d,'CableOpening',5,6,0,29,-1)]
+holes += [cyl(d,'NeckFixing',1.7,6,x,y,-1) for x in [-29,5] for y in [39,43]]
+finish(d,cut(d,'Result',cyl(d,'Disk','Dimensions.Radius','Dimensions.Thickness'),holes),'turntable','parts',
+       'Поворотный диск','Ø110, 4 мм. Опирается на условный кольцевой подшипник. Центральное соединение с качалкой условное.')
+
+# Neck local zero is the top surface of the turntable. Pitch axis: (0,5,100).
+d=begin('neck',{'AxisHeight':100,'RearY':45,'Wall':8})
+base=box(d,'Foot',58,22,8,-40,33)
+left=box(d,'LeftColumn',11,'Dimensions.Wall','Dimensions.AxisHeight + 12 mm',-35,'Dimensions.RearY')
+right=box(d,'ServoColumn',14,'Dimensions.Wall','Dimensions.AxisHeight + 12 mm',0,'Dimensions.RearY')
+bridge=box(d,'Bridge',49,8,12,-35,45,82)
+rear_mount=box(d,'ServoRearMount',6.7,9,'Dimensions.AxisHeight + 12 mm - 86 mm',0,36,86)
+blank=fuse(d,'NeckBlank',[base,left,right,bridge,rear_mount])
+holes=[cyl(d,'FootScrew',1.7,10,x,y,-1) for x in [-29,5] for y in [39,43]]
+holes += [cyl(d,'RearServoScrew',1.3,9,-1,39.2,100+dz,(1,0,0)) for dz in [-4.95,4.95]]
+finish(d,cut(d,'Result',blank,holes),'neck','parts','Шея и крепление серво наклона',
+       'Высота оси над диском 100 мм. Верх площадки серво заподлицо со стойкой, Z=112. Геометрия усилений предварительная.')
+
+d=begin('tilt-bearing-support',{'BoreRadius':8.15,'Width':11,'PlateHeight':25})
+head=box(d,'BearingBlock','Dimensions.Width',26,'Dimensions.PlateHeight',-35,-8,-13)
+arm=box(d,'RearArm','Dimensions.Width',53,'BearingBlock.Height',-35,-8,-13)
+blank=fuse(d,'Support',[head,arm])
+hole=cyl(d,'BearingSeat','Dimensions.BoreRadius',13,-36,5,0,(1,0,0))
+finish(d,cut(d,'Result',blank,[hole]),'tilt-bearing-support','parts','Опора оси наклона',
+       'Сплошная пластина 53×25×11 мм, верх заподлицо с шеей. Посадка Ø16,3 под подшипник 6×16×5. Соединение с шеей условно клеевое.')
+
+d=begin('phone-cradle',{'PhoneWidth':76.4,'PhoneHeight':168.6,'PhoneDepth':8.2,'Clearance':0.6,'Wall':3})
+pw='Dimensions.PhoneWidth'; ph='Dimensions.PhoneHeight'
+back=box(d,'Back',pw+' + 2 * Dimensions.Clearance + 2 * Dimensions.Wall',3,
+         ph+' + 2 * Dimensions.Clearance + 2 * Dimensions.Wall',
+         '-('+pw+') / 2 - Dimensions.Clearance - Dimensions.Wall',-27,
+         '-('+ph+') / 2 - Dimensions.Clearance - Dimensions.Wall')
+bottom=box(d,'BottomLip',pw+' + 2 * Dimensions.Clearance + 2 * Dimensions.Wall',13,3,
+           '-('+pw+') / 2 - Dimensions.Clearance - Dimensions.Wall',-37,
+           '-('+ph+') / 2 - Dimensions.Clearance - Dimensions.Wall')
+upper=box(d,'UpperLip',pw+' + 2 * Dimensions.Clearance + 2 * Dimensions.Wall',13,3,
+          '-('+pw+') / 2 - Dimensions.Clearance - Dimensions.Wall',-37,
+          '('+ph+') / 2 + Dimensions.Clearance')
+rails=[box(d,'SideGrip',3,13,46,x,-37,-23) for x in [-41.8,38.8]]
+blank=fuse(d,'CradleBlank',[back,bottom,upper]+rails)
+holes=[box(d,'USBAccess',18,15,7,-9,-38,-89)]
+holes += [cyl(d,'BracketScrew',1.7,6,x,-29,z,(0,1,0)) for x in [-18,18] for z in [-8,8]]
+finish(d,cut(d,'Result',blank,holes),'phone-cradle','parts','Люлька телефона',
+       'Телефон 76,4×168,6×8,2, зазор 0,6 мм. Боковые держатели и нижнее окно зарядки. Способ съёма телефона требует проверки.')
+
+d=begin('tilt-bracket',{'ArmThickness':6,'ArmDepth':32,'HalfHeight':12})
+crossbar=box(d,'BackCrossbar',78,5,24,-42,-24,-12)
+arms=[box(d,'Arm','Dimensions.ArmThickness','Dimensions.ArmDepth',24,x,-24,-12) for x in [-42,30]]
+# Right output coupling reaches the shaft horn; left stub connects through bearing.
+right_pad=box(d,'RightCoupling',6,27,24,24,-19,-12)
+blank=fuse(d,'BracketBlank',[crossbar,right_pad]+arms)
+holes=[cyl(d,'AxisClearance',3.2,84,-44,5,0,(1,0,0))]
+holes += [cyl(d,'CradleScrew',1.3,7,x,-25,z,(0,1,0)) for x in [-18,18] for z in [-8,8]]
+finish(d,cut(d,'Result',blank,holes),'tilt-bracket','parts','Скоба наклона люльки',
+       'Скоба охватывает серво. Передаёт движение через условную качалку справа; слева — отдельная ось в подшипнике.')
+
+d=begin('tilt-axle',{'Radius':3,'Length':18})
+finish(d,cyl(d,'Axle','Dimensions.Radius','Dimensions.Length'),'tilt-axle','parts','Ось опоры наклона',
+       'Гладкая ось Ø6×18. В сборке вдоль X, соединение с левой щекой условно клеевое.',METAL)
+
+# Purchased component envelopes.
+d=begin('phone-reference',{'Width':76.4,'Height':168.6,'Depth':8.2},'components')
+phone=box(d,'Phone','Dimensions.Width','Dimensions.Depth','Dimensions.Height','-Dimensions.Width / 2',
+          '-Dimensions.Depth / 2','-Dimensions.Height / 2')
+finish(d,phone,'phone-reference','components','Телефон — габаритный макет',
+       'Размеры предположены по рисунку, не паспорт конкретной модели. Экран и камера — отдельные визуальные элементы сборки.',DARK)
+
+for key, dims, note in [
+    ('pan-bearing-reference',{'OuterRadius':45,'InnerRadius':28,'Width':5},'Условный опорно-поворотный подшипник 90×56×5; реальный артикул не выбран.'),
+    ('tilt-bearing-reference',{'OuterRadius':8,'InnerRadius':3,'Width':5},'Условный радиальный подшипник 6×16×5; посадки не рассчитаны.'),
+    ('pan-horn-reference',{'OuterRadius':10,'InnerRadius':1.6,'Width':5},'Условная качалка серво поворота. Шлиц и крепление к диску упрощены.'),
+    ('tilt-horn-reference',{'OuterRadius':9,'InnerRadius':1.6,'Width':2.1},'Условная качалка серво наклона. Профиль шлицев и крепление к скобе требуют разработки.')]:
+    d=begin(key,dims,'components')
+    blank=cyl(d,'Outer','Dimensions.OuterRadius','Dimensions.Width')
+    hole=cyl(d,'Bore','Dimensions.InnerRadius','Dimensions.Width + 2 mm',z=-1)
+    finish(d,cut(d,'Result',blank,[hole]),key,'components',key,note,METAL)
+
+for key, dims, note, color in [
+    ('controller-reference',{'Length':55,'Width':28,'Height':12},'Габаритный резерв под контроллер; модель платы и разъёмы не выбраны.',(0.17,0.46,0.28)),
+    ('power-reference',{'Length':45,'Width':22,'Height':12},'Габаритный резерв под модуль питания; электрическая схема не проектировалась.',BLUE)]:
+    d=begin(key,dims,'components')
+    obj=box(d,'Envelope','Dimensions.Length','Dimensions.Width','Dimensions.Height')
+    finish(d,obj,key,'components',key,note,color)
+
+for key,length in [('m3-screw-reference',10),('m3-short-screw-reference',8)]:
+    d=begin(key,{'ShankRadius':1.5,'Length':length,'HeadRadius':2.8,'HeadHeight':3},'components')
+    blank=fuse(d,'Screw',[cyl(d,'Shank','Dimensions.ShankRadius','Dimensions.Length',z='-Dimensions.Length'),
+                           cyl(d,'Head','Dimensions.HeadRadius','Dimensions.HeadHeight')])
+    finish(d,blank,key,'components','Винт M3×'+str(length)+' — макет','Гладкий стержень без резьбы и шлица.',METAL)
+
+# Load servo source as an actual linked source document.
+servo_path=os.path.join(ROOT,'cad/components/servo-reference/servo-352944.FCStd')
+servo_doc=App.openDocument(servo_path)
+servo=servo_doc.getObject('Servo')
+ITEMS['servo-reference']=servo
+
+def link(doc, parent, name, source, pos=(0,0,0), rotation=None, part_id=None):
+    obj=doc.addObject('App::Link',name)
+    obj.setLink(source)
+    obj.LinkTransform=True
+    if parent: parent.addObject(obj)
+    obj.LinkPlacement=App.Placement(V(*pos),rotation or App.Rotation())
+    obj.Visibility=True
+    if part_id:
+        BOM.append((part_id, doc.Name, name))
+    return obj
+
+def assembly_doc(name, relative):
+    d=newdoc(name,relative)
+    root=d.addObject('App::Part','Assembly'); root.Label=name.replace('AS_','')
+    folder(os.path.dirname(relative))
+    d.saveAs(os.path.join(ROOT,relative))
+    return d,root
+
+def save_assembly(d, root, relative):
+    d.recompute()
+    for o in d.Objects:
+        if 'Invalid' in o.State:
+            raise RuntimeError('Invalid object: '+d.Name+'.'+o.Name)
+    folder(os.path.dirname(relative))
+    d.saveAs(os.path.join(ROOT,relative))
+    return root
+
+rz_to_x=App.Rotation(V(0,0,1),V(1,0,0))
+servo_rotation=App.Rotation(V(1,1,1),120)
+
+d,base=assembly_doc('AS_Base','cad/assemblies/base.FCStd')
+for key,pos in [('base-shell',(0,0,12)),('base-bottom',(0,0,8)),('base-cover',(0,0,74)),
+                ('pan-servo-mount',(0,0,12)),('controller-reference',(-27,-49,16)),('power-reference',(-22,25,16))]:
+    link(d,base,key.replace('-','_'),ITEMS[key],pos,part_id=key)
+for i,(x,y) in enumerate([(42,36),(-42,36),(42,-36),(-42,-36)]):
+    link(d,base,'Foot'+str(i+1),ITEMS['foot'],(x,y,0),part_id='foot')
+link(d,base,'PanServo',servo,(10.1,0,36.1),part_id='servo-reference')
+link(d,base,'PanBearing',ITEMS['pan-bearing-reference'],(0,0,78),part_id='pan-bearing-reference')
+for i,(x,y) in enumerate([(60,28),(-60,28),(60,-28),(-60,-28)]):
+    link(d,base,'CoverScrew'+str(i),ITEMS['m3-screw-reference'],(x,y,78),part_id='m3-screw-reference')
+for i,(x,y) in enumerate([(x,y) for x in [-24.1,24.1] for y in [-4.95,4.95]]):
+    link(d,base,'ServoScrew'+str(i),ITEMS['m3-screw-reference'],(x+10.1,y,65.3),part_id='m3-screw-reference')
+save_assembly(d,base,'cad/assemblies/base.FCStd')
+
+d,holder=assembly_doc('AS_PhoneHolder','cad/assemblies/phone-holder.FCStd')
+for key in ['phone-cradle','tilt-bracket']:
+    link(d,holder,key.replace('-','_'),ITEMS[key],part_id=key)
+link(d,holder,'Phone',ITEMS['phone-reference'],(0,-31.7,0),part_id='phone-reference')
+link(d,holder,'SupportAxle',ITEMS['tilt-axle'],(-40,5,0),rz_to_x,part_id='tilt-axle')
+link(d,holder,'TiltHorn',ITEMS['tilt-horn-reference'],(21.9,5,0),rz_to_x,part_id='tilt-horn-reference')
+# A screen and face are presentation geometry, not physical BOM parts.
+screen=box(d,'Screen',68,0.35,151,-34,-35.95,-75.5)
+screen.ViewObject.ShapeColor=(0.035,0.045,0.055); holder.addObject(screen)
+for i,x in enumerate([-16,16]):
+    eye=cyl(d,'Eye'+str(i),7,0.5,x,-36.45,20,(0,1,0)); eye.ViewObject.ShapeColor=(0.4,0.95,0.78); holder.addObject(eye)
+mouth=box(d,'Smile',24,0.5,3,-12,-36.45,-25); mouth.ViewObject.ShapeColor=(0.4,0.95,0.78); holder.addObject(mouth)
+for i,(x,z) in enumerate([(x,z) for x in [-18,18] for z in [-8,8]]):
+    link(d,holder,'CradleScrew'+str(i),ITEMS['m3-short-screw-reference'],(x,-19,z),App.Rotation(V(0,0,1),V(0,1,0)),part_id='m3-short-screw-reference')
+save_assembly(d,holder,'cad/assemblies/phone-holder.FCStd')
+
+d,head=assembly_doc('AS_TiltHead','cad/assemblies/tilt-head.FCStd')
+link(d,head,'Neck',ITEMS['neck'],part_id='neck')
+link(d,head,'BearingSupport',ITEMS['tilt-bearing-support'],(0,0,100),part_id='tilt-bearing-support')
+link(d,head,'Bearing',ITEMS['tilt-bearing-reference'],(-32,5,100),rz_to_x,part_id='tilt-bearing-reference')
+link(d,head,'TiltServo',servo,(-20,15.1,100),servo_rotation,part_id='servo-reference')
+for i,dz in enumerate([-4.95,4.95]):
+    link(d,head,'RearServoScrew'+str(i),ITEMS['m3-screw-reference'],(9.2,39.2,100+dz),rz_to_x,part_id='m3-screw-reference')
+moving=link(d,head,'PhoneHolder',holder,(0,5,100))
+# Holder geometry uses y=5 for pivot; remove that local offset before rotation.
+# Its link origin is shifted using a dedicated App::Part so rotation is around the shaft.
+head.removeObject(moving)
+pivot=d.addObject('App::Part','Tilt'); pivot.Label='Tilt — change Pitch (degrees)'; head.addObject(pivot)
+pivot.addProperty('App::PropertyAngle','Pitch','Motion'); pivot.Pitch=0
+pivot.Placement=App.Placement(V(0,5,100),App.Rotation())
+pivot.setExpression('Placement.Rotation.Angle','Pitch')
+pivot.Placement=App.Placement(V(0,5,100),App.Rotation(V(1,0,0),0.001))
+pivot.setExpression('Placement.Rotation.Angle','Pitch')
+pivot.addObject(moving); moving.LinkPlacement=App.Placement(V(0,-5,0),App.Rotation())
+save_assembly(d,head,'cad/assemblies/tilt-head.FCStd')
+
+d,rotating=assembly_doc('AS_Turntable','cad/assemblies/turntable.FCStd')
+link(d,rotating,'Disk',ITEMS['turntable'],part_id='turntable')
+link(d,rotating,'PanHorn',ITEMS['pan-horn-reference'],(0,0,-5),part_id='pan-horn-reference')
+link(d,rotating,'TiltHead',head,(0,0,4))
+for i,(x,y) in enumerate([(x,y) for x in [-29,5] for y in [39,43]]):
+    link(d,rotating,'NeckScrew'+str(i),ITEMS['m3-screw-reference'],(x,y,12),part_id='m3-screw-reference')
+save_assembly(d,rotating,'cad/assemblies/turntable.FCStd')
+
+d,stand=assembly_doc('AS_Stand','cad/assemblies/stand.FCStd')
+link(d,stand,'Base',base)
+yaw=d.addObject('App::Part','Pan'); stand.addObject(yaw); yaw.Label='Pan — change Yaw (degrees)'
+yaw.addProperty('App::PropertyAngle','Yaw','Motion'); yaw.Yaw=0
+yaw.Placement=App.Placement(V(0,0,83),App.Rotation(V(0,0,1),0.001))
+yaw.setExpression('Placement.Rotation.Angle','Yaw')
+link(d,yaw,'Turntable',rotating)
+stand.addProperty('App::PropertyString','Status','Documentation'); stand.Status='Concept mockup; see docs/design.md'
+save_assembly(d,stand,'cad/assemblies/stand.FCStd')
+stand_doc=d
+
+# Layout: separate lightweight envelopes, axes and motion extremes.
+d,layout=assembly_doc('AS_Layout','cad/layout.FCStd')
+params(d,{'BaseDiameter':140,'BaseHeight':78,'DiskHeight':83,'TiltHeight':187,
+          'TiltOffsetY':5,'PhoneWidth':76.4,'PhoneHeight':168.6,'PhoneDepth':8.2})
+envelope=cyl(d,'BaseEnvelope','Dimensions.BaseDiameter / 2','Dimensions.BaseHeight'); layout.addObject(envelope)
+envelope.ViewObject.ShapeColor=GREEN; envelope.ViewObject.Transparency=75
+axis=cyl(d,'PanAxis',0.5,290); layout.addObject(axis); axis.ViewObject.ShapeColor=BLUE
+for angle in [-30,0,30]:
+    obj=box(d,'PhoneAt'+str(angle).replace('-','Minus'),76.4,8.2,168.6,-38.2,-35.8,-84.3)
+    group=d.addObject('App::Part','Pose'); layout.addObject(group); group.addObject(obj)
+    group.Placement=App.Placement(V(0,5,187),App.Rotation(V(1,0,0),angle))
+    obj.Placement.Base=obj.Placement.Base-V(0,5,0)
+    obj.ViewObject.ShapeColor=BLUE; obj.ViewObject.Transparency=75 if angle else 25
+save_assembly(d,layout,'cad/layout.FCStd')
+
+# Export assembly and documentation of what was generated.
+export_dir=folder('cad/assemblies/exports')
+App.setActiveDocument(stand_doc.Name)
+stand_doc.recompute()
+Import.export([stand],os.path.join(export_dir,'stand.step'))
+with open(os.path.join(ROOT,'docs/bom.csv'),'w',newline='') as f:
+    writer=csv.writer(f); writer.writerow(['part_id','quantity','category','source'])
+    counts={}
+    for key,_,_ in BOM: counts[key]=counts.get(key,0)+1
+    for key,count in sorted(counts.items()):
+        obj=ITEMS[key]
+        category='parts' if '/parts/' in obj.Document.FileName else 'components'
+        writer.writerow([key,count,category,os.path.relpath(obj.Document.FileName,ROOT)])
+Gui.activeDocument().activeView().viewAxonometric(); Gui.activeDocument().activeView().fitAll()
+Gui.activeDocument().activeView().saveImage(os.path.join(export_dir,'stand-isometric.png'),1400,1200,'White')
+Gui.activeDocument().activeView().viewFront(); Gui.activeDocument().activeView().fitAll()
+Gui.activeDocument().activeView().saveImage(os.path.join(export_dir,'stand-front.png'),1000,1200,'White')
+Gui.activeDocument().activeView().viewRight(); Gui.activeDocument().activeView().fitAll()
+Gui.activeDocument().activeView().saveImage(os.path.join(export_dir,'stand-side.png'),1000,1200,'White')
+Gui.activeDocument().activeView().viewAxonometric(); Gui.activeDocument().activeView().fitAll()
+with open(os.path.join(ROOT,'docs/build-report.json'),'w') as f: json.dump(REPORT,f,indent=2)
+print('BUILT',len(ITEMS),'source components;',len(MODEL_DOCS),'new documents; BOM',counts)
+print('Open assembly:',stand_doc.FileName)

@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600"><rect width="600" height="600" fill="white"/><g fill="black" font-family="sans-serif" font-size="13"><text x="20" y="25">turntable — CONCEPT / mm</text><text x="20" y="550">Envelope X/Y/Z: 110.00 / 109.97 / 4.00 mm</text><text x="20" y="575">Reference views only; dimensions in FCStd spreadsheet.</text><text x="90" y="60">Front</text><g transform="translate(150,180) scale(1.9090909090909092,-1.9090909090909092)"><g   fill="none"
+   stroke="rgb(0, 0, 0)"
+   stroke-linecap="butt"
+   stroke-linejoin="miter"
+   stroke-width="1.0"
+   transform="scale(1, -1)"
+  >
+<path id= "1" d=" M -2 -55 L 2 -55 " />
+</g>
+<g   fill="none"
+   stroke="rgb(0, 0, 0)"
+   stroke-linecap="butt"
+   stroke-linejoin="miter"
+   stroke-width="1.0"
+   transform="scale(1, -1)"
+  >
+<path id= "1" d=" M 2 55 L -2 55 " />
+<path d="M2, -55 L2, -53.621  L2, -49.5533  L2, -43.0007  L2, -34.2919  L2, -23.8636  L2, -12.2387  L2, -1.06581e-14  L2, 12.2387  L2, 23.8636  L2, 34.2919  L2, 43.0007  L2, 49.5533  L2, 53.621  L2, 55 " /><path d="M-2, -55 L-2, -53.621  L-2, -49.5533  L-2, -43.0007  L-2, -34.2919  L-2, -23.8636  L-2, -12.2387  L-2, -1.06581e-14  L-2, 12.2387  L-2, 23.8636  L-2, 34.2919  L-2, 43.0007  L-2, 49.5533  L-2, 53.621  L-2, 55 " /></g>
+</g><text x="360" y="60">Right</text><g transform="translate(420,180) scale(1.9090909090909092,-1.9090909090909092)"><g   fill="none"
+   stroke="rgb(0, 0, 0)"
+   stroke-linecap="butt"
+   stroke-linejoin="miter"
+   stroke-width="1.0"
+   transform="scale(1, -1)"
+  >
+<path id= "1" d=" M 2 55 L -2 55 " />
+<path id= "2" d=" M 2 -55 L -2 -55 " />
+</g>
+<g   fill="none"
+   stroke="rgb(0, 0, 0)"
+   stroke-linecap="butt"
+   stroke-linejoin="miter"
+   stroke-width="1.0"
+   transform="scale(1, -1)"
+  >
+<path d="M-2, -3.55271e-15 L-2, -6.15805  L-2, -12.2387  L-2, -18.1653  L-2, -23.8636  L-2, -29.2618  L-2, -34.2919  L-2, -38.8909  L-2, -43.0007  L-2, -46.5698  L-2, -49.5533  L-2, -51.9136  L-2, -53.621  L-2, -54.6542  L-2, -55 " /><path d="M-2, 55 L-2, 54.6542  L-2, 53.621  L-2, 51.9136  L-2, 49.5533  L-2, 46.5698  L-2, 43.0007  L-2, 38.8909  L-2, 34.2919  L-2, 29.2618  L-2, 23.8636  L-2, 18.1653  L-2, 12.2387  L-2, 6.15805  L-2, 9.76996e-15 " /><path d="M2, -3.55271e-15 L2, -6.15805  L2, -12.2387  L2, -18.1653  L2, -23.8636  L2, -29.2618  L2, -34.2919  L2, -38.8909  L2, -43.0007  L2, -46.5698  L2, -49.5533  L2, -51.9136  L2, -53.621  L2, -54.6542  L2, -55 " /><path d="M2, 55 L2, 54.6542  L2, 53.621  L2, 51.9136  L2, 49.5533  L2, 46.5698  L2, 43.0007  L2, 38.8909  L2, 34.2919  L2, 29.2618  L2, 23.8636  L2, 18.1653  L2, 12.2387  L2, 6.15805  L2, 9.76996e-15 " /></g>
+</g><text x="90" y="310">Top</text><g transform="translate(150,430) scale(1.9090909090909092,-1.9090909090909092)"><g   fill="none"
+   stroke="rgb(0, 0, 0)"
+   stroke-linecap="butt"
+   stroke-linejoin="miter"
+   stroke-width="1.0"
+   transform="scale(1, -1)"
+  >
+<circle cx ="0" cy ="3.55271e-15" r ="55" /><circle cx ="0" cy ="3.55271e-15" r ="1.7" /><circle cx ="-29" cy ="39" r ="1.7" /><circle cx ="-29" cy ="43" r ="1.7" /><circle cx ="0" cy ="29" r ="5" /><circle cx ="5" cy ="39" r ="1.7" /><circle cx ="5" cy ="43" r ="1.7" /></g>
+</g></g></svg>

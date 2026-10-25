@@ -1,0 +1,114 @@
+"""Verify source geometry, links, exports and sampled motion of the mockup."""
+import os
+import json
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+stand_path = os.path.join(ROOT, 'cad/assemblies/stand.FCStd')
+stand_doc = next((d for d in App.listDocuments().values() if d.FileName == stand_path), None)
+if stand_doc is None:
+    stand_doc = App.openDocument(stand_path)
+head_doc = next(d for d in App.listDocuments().values() if d.FileName.endswith('/assemblies/tilt-head.FCStd'))
+holder_doc = next(d for d in App.listDocuments().values() if d.FileName.endswith('/assemblies/phone-holder.FCStd'))
+base_doc = next(d for d in App.listDocuments().values() if d.FileName.endswith('/assemblies/base.FCStd'))
+turn_doc = next(d for d in App.listDocuments().values() if d.FileName.endswith('/assemblies/turntable.FCStd'))
+pitch = head_doc.getObject('Tilt')
+pan = stand_doc.getObject('Pan')
+saved_pitch, saved_yaw = float(pitch.Pitch), float(pan.Yaw)
+report = {'source_checks': [], 'links': [], 'motion': [], 'known_limits': [
+    'Sampled rigid geometry only: not a continuous collision proof.',
+    'No cable, load, fatigue, print tolerance or fastener strength analysis.',
+    'Horn couplings and glued interfaces are provisional.'
+]}
+
+def recompute_all():
+    for _ in range(3):
+        for doc in App.listDocuments().values():
+            doc.recompute()
+
+for doc in list(App.listDocuments().values()):
+    if not doc.FileName.startswith(ROOT + '/cad/'):
+        continue
+    doc.recompute()
+    for obj in doc.Objects:
+        assert 'Invalid' not in obj.State, doc.Name + '.' + obj.Name
+        if obj.TypeId == 'App::Link':
+            assert obj.LinkedObject is not None, obj.Name
+            report['links'].append(doc.Name + '.' + obj.Name)
+        if obj.TypeId != 'App::Link' and hasattr(obj, 'PartID'):
+            assert obj.Shape.isValid() and len(obj.Shape.Solids) == 1, obj.Name
+            report['source_checks'].append(obj.PartID)
+
+try:
+    for angle in range(-30, 31, 5):
+        pitch.Pitch = angle
+        recompute_all()
+        moving = pitch.Shape
+        volumes = {}
+        for name in ['Neck', 'BearingSupport', 'TiltServo']:
+            vol = moving.common(head_doc.getObject(name).Shape).Volume
+            volumes[name] = round(vol, 5)
+            assert vol < 0.01, 'Pitch %s collides with %s: %s mm3' % (angle, name, vol)
+        gap = moving.BoundBox.ZMin  # head local zero equals disk top
+        assert gap > 0, 'Holder crosses turntable plane'
+        report['motion'].append({'pitch_degrees': angle, 'intersections_mm3': volumes,
+                                 'holder_above_disk_mm': round(gap, 3)})
+    pitch.Pitch = 0
+    for yaw in [-90, -45, 0, 45, 90]:
+        pan.Yaw = yaw
+        recompute_all()
+        overlap = pan.Shape.common(base_doc.getObject('Assembly').Shape).Volume
+        assert overlap < 0.05, 'Pan/base overlap: %s' % overlap
+        report['motion'].append({'yaw_degrees': yaw, 'base_intersection_mm3': round(overlap, 5)})
+    # Check internal non-fastener parts in the holder, excluding face presentation.
+    physical = [holder_doc.getObject(k) for k in ['phone_cradle','tilt_bracket','Phone','SupportAxle','TiltHorn']]
+    pairs = []
+    for i, a in enumerate(physical):
+        for b in physical[i+1:]:
+            vol = a.Shape.common(b.Shape).Volume
+            pairs.append({'a': a.Name, 'b': b.Name, 'volume_mm3': round(vol, 5)})
+            assert vol < 0.01, 'Holder internal overlap %s / %s' % (a.Name,b.Name)
+    report['holder_pairs'] = pairs
+    report['fixed_pairs'] = []
+    for doc, names in [(base_doc,['base_shell','base_bottom','base_cover','pan_servo_mount','controller_reference','power_reference','PanServo','PanBearing']),
+                       (head_doc,['Neck','BearingSupport','Bearing','TiltServo'])]:
+        for i, an in enumerate(names):
+            for bn in names[i+1:]:
+                vol=doc.getObject(an).Shape.common(doc.getObject(bn).Shape).Volume
+                report['fixed_pairs'].append({'doc':doc.Name,'a':an,'b':bn,'volume_mm3':round(vol,5)})
+                assert vol < 0.01, 'Fixed parts overlap: %s / %s' % (an,bn)
+    neck_source=head_doc.getObject('Neck').LinkedObject.Document
+    tops=[neck_source.getObject(k).Shape.BoundBox.ZMax for k in ['LeftColumn','ServoColumn','ServoRearMount']]
+    tops.append(head_doc.getObject('BearingSupport').Shape.BoundBox.ZMax)
+    assert max(tops)-min(tops)<0.0001, 'Step at neck/support top interface: %s' % tops
+    report['flush_upper_surfaces']={'passed':True,'height_above_disk_mm':tops[0]}
+    # Read exported STEP back through OCCT; ensure whole assembly was exported.
+    step = Part.Shape()
+    step.read(os.path.join(ROOT, 'cad/assemblies/exports/stand.step'))
+    assert step.isValid() and len(step.Solids) >= 35
+    report['step'] = {'valid': True, 'solid_count': len(step.Solids),
+                      'bounds_mm': [step.BoundBox.XLength, step.BoundBox.YLength, step.BoundBox.ZLength]}
+    App.setActiveDocument(stand_doc.Name)
+    pan.Yaw=25; pitch.Pitch=20; recompute_all()
+    Gui.activeDocument().activeView().viewAxonometric(); Gui.activeDocument().activeView().fitAll()
+    Gui.activeDocument().activeView().saveImage(os.path.join(ROOT,'cad/assemblies/exports/stand-pose.png'),1400,1200,'White')
+    pan.Yaw=0; pitch.Pitch=0; recompute_all()
+    base_doc.getObject('base_shell').Visibility=False
+    base_doc.getObject('base_cover').Visibility=False
+    Gui.activeDocument().activeView().fitAll()
+    Gui.activeDocument().activeView().saveImage(os.path.join(ROOT,'cad/assemblies/exports/stand-cutaway.png'),1400,1200,'White')
+    base_doc.getObject('base_shell').Visibility=True
+    base_doc.getObject('base_cover').Visibility=True
+    report['passed'] = True
+finally:
+    pitch.Pitch=saved_pitch; pan.Yaw=saved_yaw
+    base_doc.getObject('base_shell').Visibility=True
+    base_doc.getObject('base_cover').Visibility=True
+    recompute_all()
+    App.setActiveDocument(stand_doc.Name)
+    Gui.activeDocument().activeView().viewAxonometric(); Gui.activeDocument().activeView().fitAll()
+    with open(os.path.join(ROOT,'docs/verification-report.json'),'w') as f:
+        json.dump(report,f,indent=2)
+print('VERIFIED',len(report['source_checks']),'sources,',len(report['links']),'links,',len(report['motion']),'poses; STEP',report['step'])

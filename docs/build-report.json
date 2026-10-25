@@ -1,0 +1,126 @@
+{
+  "shape_checks": [
+    {
+      "id": "base-shell",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 86289.554
+    },
+    {
+      "id": "base-bottom",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 61284.682
+    },
+    {
+      "id": "base-cover",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 59595.259
+    },
+    {
+      "id": "foot",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 1963.118
+    },
+    {
+      "id": "pan-servo-mount",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 10703.359
+    },
+    {
+      "id": "turntable",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 37517.528
+    },
+    {
+      "id": "neck",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 34518.121
+    },
+    {
+      "id": "tilt-bearing-support",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 12279.603
+    },
+    {
+      "id": "phone-cradle",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 50899.09
+    },
+    {
+      "id": "tilt-bracket",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 20344.135
+    },
+    {
+      "id": "tilt-axle",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 508.938
+    },
+    {
+      "id": "phone-reference",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 105624.528
+    },
+    {
+      "id": "pan-bearing-reference",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 19493.582
+    },
+    {
+      "id": "tilt-bearing-reference",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 863.938
+    },
+    {
+      "id": "pan-horn-reference",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 1530.584
+    },
+    {
+      "id": "tilt-horn-reference",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 517.496
+    },
+    {
+      "id": "controller-reference",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 18480.0
+    },
+    {
+      "id": "power-reference",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 11880.0
+    },
+    {
+      "id": "m3-screw-reference",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 144.576
+    },
+    {
+      "id": "m3-short-screw-reference",
+      "solids": 1,
+      "valid": true,
+      "volume_mm3": 130.439
+    }
+  ],
+  "motion_checks": [],
+  "assumptions": "docs/design.md"
+}
