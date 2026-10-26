@@ -1,0 +1,53 @@
+"""Original, unmodified author parts with the user's unmodified MG996R STL."""
+import os
+import Mesh
+import FreeCAD as App
+import FreeCADGui as Gui
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+OUT = os.path.join(ROOT, 'experiments/pan-tilt-1941574')
+target = os.path.join(OUT, 'assembly-user-mg996r.FCStd')
+if os.path.exists(target):
+    raise RuntimeError('Refusing to overwrite assembly')
+V = App.Vector
+doc = App.newDocument('PanTiltOriginalWithUserMG996R')
+def part(name, filename, rotation, position, color):
+    obj = doc.addObject('Mesh::Feature', name)
+    obj.Mesh = Mesh.Mesh(os.path.join(ROOT, 'references/pan-tilt-1941574/original/files', filename))
+    obj.Placement = App.Placement(V(*position), rotation)
+    obj.ViewObject.ShapeColor = color
+    return obj
+
+dark = (0.25, 0.28, 0.32)
+light = (0.87, 0.86, 0.77)
+part('Base', 'PanTiltBase_std.stl', App.Rotation(), (-42.5, -21, 0), light)
+pan = part('PanCarrier', 'PanMount7.stl', App.Rotation(V(1,0,0),180), (-10,0,29), dark)
+r = App.Rotation(V(-1,0,0),V(0,0,1),V(0,1,0),'ZXY')
+part('ServoSide', 'sideplateservo_std.stl', r, (-10,-22.5,48), light)
+part('ShaftSide', 'sideplateshaft_std.stl', App.Rotation(V(1,0,0),90), (-10,22.5,50), light)
+r = App.Rotation(V(0,0,1),180).multiply(App.Rotation(V(1,0,0),180))
+tilt = part('TiltPlatform','tiltservomount_std.stl',r,(-59.3,-5,81.5),dark)
+
+# Normalize the supplied file's axes by rigid placement only. No scaling or mesh edits.
+# Its X is width, Y is height/shaft direction, Z is the long body dimension.
+canonical_rot = App.Rotation(V(0,-1,0),V(0,0,1),V(-1,0,0),'ZXY')
+canonical = App.Placement(V(27.24805,9.50035,0),canonical_rot)
+meshpath = os.path.join(ROOT,'references/datasheets/mg996r/user-model/MG996R_Servo_Model.stl')
+for name, parent, local in [
+    ('PanMG996R',pan,App.Placement(V(0,0,-26.5),App.Rotation(V(0,0,1),180))),
+    ('TiltMG996R',tilt,App.Placement(V(-1.5,26.5,11.5),App.Rotation(V(1,0,0),90))),
+]:
+    o=doc.addObject('Mesh::Feature',name)
+    o.Mesh=Mesh.Mesh(meshpath)
+    o.Placement=parent.Placement.multiply(local).multiply(canonical)
+    o.ViewObject.ShapeColor=(0.15,0.17,0.20)
+    o.addProperty('App::PropertyString','SourceFile').SourceFile=meshpath
+    o.addProperty('App::PropertyString','Status').Status='Rigid placement only; mounting mismatch not corrected'
+
+doc.recompute();doc.saveAs(target)
+App.setActiveDocument(doc.Name)
+Gui.Selection.clearSelection()
+Gui.activeDocument().activeView().viewAxonometric()
+Gui.activeDocument().activeView().fitAll()
+Gui.activeDocument().activeView().saveImage(os.path.join(OUT,'assembly-user-mg996r.png'),1400,1100,'White')
+print(target)

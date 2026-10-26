@@ -1,0 +1,93 @@
+"""Three-hole insert for micromet's unchanged ServoSide recess (Thingiverse 1941574).
+Recess-derived profile retains the source's CC BY-SA attribution.
+"""
+import os
+import math
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+import MeshPart
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+OUT = os.path.join(ROOT, 'experiments/pan-tilt-1941574/horn-insert')
+target = os.path.join(OUT, 'horn-insert.FCStd')
+if os.path.exists(target):
+    raise RuntimeError('Refusing to overwrite the insert')
+V = App.Vector
+
+def hull(points):
+    pts=sorted(set(points))
+    def cross(o,a,b): return (a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0])
+    lo=[];hi=[]
+    for p in pts:
+        while len(lo)>=2 and cross(lo[-2],lo[-1],p)<=0:lo.pop()
+        lo.append(p)
+    for p in reversed(pts):
+        while len(hi)>=2 and cross(hi[-2],hi[-1],p)<=0:hi.pop()
+        hi.append(p)
+    return lo[:-1]+hi[:-1]
+
+def face(points):
+    vertices=[V(x,y,0) for x,y in points]
+    return Part.Face(Part.makePolygon(vertices+[vertices[0]]))
+
+# Same convex hull and polygon counts as the author's recess, in shaft-centered coordinates.
+tip=[(-19+3*math.cos(i*2*math.pi/20),3*math.sin(i*2*math.pi/20)) for i in range(20)]
+arm=face(hull(tip+[(-2,-5.5),(-2,5.5),(0,-5.5),(0,5.5)]))
+center=face([(5.5*math.cos(i*2*math.pi/72),5.5*math.sin(i*2*math.pi/72)) for i in range(72)])
+outline_solid=arm.extrude(V(0,0,1)).fuse(center.extrude(V(0,0,1))).removeSplitter()
+outline=min(outline_solid.Faces,key=lambda f:f.CenterOfMass.z)
+inset=outline.OuterWire.makeOffset2D(-0.15,join=0,fill=False)
+wire=inset.Wires[0] if inset.Wires else inset
+profile=Part.Face(wire)
+doc=App.newDocument('ServoSideHornInsert')
+sheet=doc.addObject('Spreadsheet::Sheet','Dimensions')
+values=[('Thickness',2.8),('SmallHoleDiameter',2.2),('CenterHoleDiameter',3.2),
+        ('FirstHoleOffset',11),('SecondHoleOffset',17.5),
+        ('ShaftReliefDiameter',6.8),('ShaftReliefDepth',1.05),('SideClearance',0.15)]
+for i,(name,value) in enumerate(values,1):
+    sheet.set('A'+str(i),name);sheet.set('B'+str(i),str(value));sheet.setAlias('B'+str(i),name)
+base=doc.addObject('PartDesign::Feature','RecessOutline')
+base.Shape=profile
+base.addProperty('App::PropertyString','Source').Source='micromet, Thingiverse 1941574, sideplateservo_std.scad; CC BY-SA (version unspecified in supplied archive)'
+blank=doc.addObject('Part::Extrusion','Blank')
+blank.Base=base;blank.DirMode='Custom';blank.Dir=V(0,0,1);blank.Solid=True
+blank.setExpression('LengthFwd','Dimensions.Thickness')
+holes=[]
+for name,offset in [('CenterHole',0),('FirstScrewHole',11),('SecondScrewHole',17.5)]:
+    o=doc.addObject('Part::Cylinder',name)
+    o.setExpression('Radius','Dimensions.CenterHoleDiameter / 2' if offset==0 else 'Dimensions.SmallHoleDiameter / 2')
+    o.Height=5;o.Placement.Base=V(-offset,0,-1)
+    if offset:
+        o.setExpression('Placement.Base.x','-Dimensions.'+('FirstHoleOffset' if offset==11 else 'SecondHoleOffset'))
+    holes.append(o)
+# Shallow underside relief clears the smooth shaft envelope already protruding into the recess.
+relief=doc.addObject('Part::Cylinder','ShaftRelief')
+relief.setExpression('Radius','Dimensions.ShaftReliefDiameter / 2')
+relief.setExpression('Height','Dimensions.ShaftReliefDepth + 0.1')
+relief.Placement.Base=V(0,0,-0.1)
+holes.append(relief)
+tools=doc.addObject('Part::MultiFuse','HoleTools');tools.Shapes=holes
+result=doc.addObject('Part::Cut','Insert');result.Base=blank;result.Tool=tools
+result.Label='Вставка в паз — три отверстия'
+result.addProperty('App::PropertyString','Status').Status='Trial fit; M3/M2 nominal holes. No spline engagement has been designed.'
+doc.recompute()
+assert result.Shape.isValid() and len(result.Shape.Solids)==1
+for o in [base,blank,tools]+holes:o.Visibility=False
+result.ViewObject.ShapeColor=(0.85,0.48,0.18)
+doc.saveAs(target)
+Part.export([result],os.path.join(OUT,'horn-insert.step'))
+mesh=MeshPart.meshFromShape(Shape=result.Shape,LinearDeflection=0.05,AngularDeflection=0.15,Relative=False)
+mesh.write(os.path.join(OUT,'horn-insert.stl'))
+
+assembly=App.getDocument('PanTiltOriginalWithUserMG996R')
+link=assembly.addObject('App::Link','ServoSideInsert')
+link.setLink(result);link.LinkTransform=True
+# The untouched recess occupies ServoSide-local z=1.5..4.5.
+link.Placement=assembly.getObject('ServoSide').Placement.multiply(App.Placement(V(37.5,22.5,1.6),App.Rotation()))
+assembly.recompute();assembly.save()
+App.setActiveDocument(doc.Name)
+Gui.Selection.clearSelection()
+Gui.activeDocument().activeView().viewAxonometric();Gui.activeDocument().activeView().fitAll()
+Gui.activeDocument().activeView().saveImage(os.path.join(OUT,'horn-insert.png'),1200,900,'White')
+print('CREATED',target,'solid_count',len(result.Shape.Solids),'size',result.Shape.BoundBox)

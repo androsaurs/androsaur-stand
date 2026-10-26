@@ -1,0 +1,61 @@
+"""Nominal round horn fitting the unchanged Base; stock horn dimensions unmeasured."""
+import os
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+import MeshPart
+
+OUT=os.path.dirname(os.path.abspath(__file__))
+target=os.path.join(OUT,'base-round-horn.FCStd')
+if os.path.exists(target):raise RuntimeError('Refusing to overwrite existing horn')
+doc=App.newDocument('BaseRoundHorn')
+sheet=doc.addObject('Spreadsheet::Sheet','Dimensions')
+values=[('DiscDiameter',21.1),('DiscThickness',3.8),('HubDiameter',8.1),
+        ('HubHeight',4),('ShaftBoreDiameter',5.8),('ShaftBoreDepth',5.8),
+        ('CentralScrewDiameter',6.0),('MountHoleDiameter',2.2),('MountPitch',15.6)]
+for i,(name,value) in enumerate(values,1):
+    sheet.set('A'+str(i),name);sheet.set('B'+str(i),str(value));sheet.setAlias('B'+str(i),name)
+disc=doc.addObject('Part::Cylinder','Disc')
+disc.setExpression('Radius','Dimensions.DiscDiameter / 2')
+disc.setExpression('Height','Dimensions.DiscThickness')
+hub=doc.addObject('Part::Cylinder','Hub')
+hub.setExpression('Radius','Dimensions.HubDiameter / 2')
+hub.setExpression('Height','Dimensions.HubHeight + 0.1')
+hub.setExpression('Placement.Base.z','Dimensions.DiscThickness - 0.1')
+blank=doc.addObject('Part::Fuse','Blank');blank.Base=disc;blank.Tool=hub
+holes=[]
+for name,x,y in [('MountXPlus',1,0),('MountXMinus',-1,0),('MountYPlus',0,1),('MountYMinus',0,-1)]:
+    o=doc.addObject('Part::Cylinder',name)
+    o.setExpression('Radius','Dimensions.MountHoleDiameter / 2');o.Height=10
+    o.Placement.Base=App.Vector(0,0,-1)
+    if x:o.setExpression('Placement.Base.x',str(x)+' * Dimensions.MountPitch / 2')
+    if y:o.setExpression('Placement.Base.y',str(y)+' * Dimensions.MountPitch / 2')
+    holes.append(o)
+center=doc.addObject('Part::Cylinder','CentralScrewHole')
+center.setExpression('Radius','Dimensions.CentralScrewDiameter / 2');center.Height=10
+center.Placement.Base=App.Vector(0,0,-1);holes.append(center)
+bore=doc.addObject('Part::Cylinder','SmoothShaftBore')
+bore.setExpression('Radius','Dimensions.ShaftBoreDiameter / 2')
+bore.setExpression('Height','Dimensions.ShaftBoreDepth + 0.1')
+bore.setExpression('Placement.Base.z','Dimensions.DiscThickness + Dimensions.HubHeight - Dimensions.ShaftBoreDepth')
+holes.append(bore)
+tools=doc.addObject('Part::MultiFuse','Holes');tools.Shapes=holes
+result=doc.addObject('Part::Cut','RoundHorn');result.Base=blank;result.Tool=tools
+result.Label='Круглая качалка для Base'
+result.addProperty('App::PropertyString','Status').Status='Nominal fit to existing Base, not measured stock MG996R horn. Smooth bore only; no spline engagement.'
+doc.recompute()
+assert result.Shape.isValid() and len(result.Shape.Solids)==1
+for o in [disc,hub,blank,tools]+holes:o.Visibility=False
+result.ViewObject.ShapeColor=(0.16,0.18,0.20)
+doc.saveAs(target)
+Part.export([result],os.path.join(OUT,'base-round-horn.step'))
+MeshPart.meshFromShape(Shape=result.Shape,LinearDeflection=0.05,AngularDeflection=0.12,Relative=False).write(os.path.join(OUT,'base-round-horn.stl'))
+
+assembly=App.getDocument('PanTiltOriginalWithUserMG996R')
+if assembly.getObject('BaseRoundHorn') is not None:raise RuntimeError('Horn instance already exists')
+link=assembly.addObject('App::Link','BaseRoundHorn');link.setLink(result);link.LinkTransform=True
+link.Placement=assembly.getObject('Base').Placement.multiply(App.Placement(App.Vector(42.5,21,8),App.Rotation()))
+assembly.recompute();assembly.save()
+App.setActiveDocument(assembly.Name)
+Gui.Selection.clearSelection()
+print('Created round horn: disc21.1x3.8, hub8.1x4, four holes2.2 on15.6 pitch. Seated on Base pocket floor z8; Base unchanged.')

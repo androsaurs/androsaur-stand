@@ -1,0 +1,5 @@
+# Preserve byte-exact third-party originals, including their original line endings.
+references/pan-tilt-1941574/original/** -text -whitespace
+references/pan-tilt-1941574/scad-rev/** -text -whitespace
+# Generated CAD exchanges may contain exporter whitespace; preserve them verbatim.
+experiments/pan-tilt-1941574/**/*.step -text -whitespace

@@ -1,0 +1,43 @@
+"""Assemble unmodified author STL files using SCAD mounting and shaft coordinates."""
+import os
+import Mesh
+import FreeCAD as App
+import FreeCADGui as Gui
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+OUT = os.path.join(ROOT, 'experiments/pan-tilt-1941574')
+target = os.path.join(OUT, 'pan-tilt-1941574.FCStd')
+if os.path.exists(target):
+    raise RuntimeError('Existing assembly must not be overwritten')
+doc = App.newDocument('PanTilt1941574')
+V = App.Vector
+group = doc.addObject('App::Part', 'OriginalParts')
+
+def add(name, filename, rotation, position, color):
+    obj = doc.addObject('Mesh::Feature', name)
+    obj.Mesh = Mesh.Mesh(os.path.join(ROOT, 'references/pan-tilt-1941574/original/files', filename))
+    obj.Placement = App.Placement(V(*position), rotation)
+    obj.addProperty('App::PropertyString', 'SourceFile').SourceFile = filename
+    obj.ViewObject.ShapeColor = color
+    group.addObject(obj)
+    return obj
+
+dark = (0.25, 0.28, 0.32)
+light = (0.87, 0.86, 0.77)
+add('Base', 'PanTiltBase_std.stl', App.Rotation(), (-42.5, -21, 0), light)
+add('PanCarrier', 'PanMount7.stl', App.Rotation(V(1, 0, 0), 180), (-10, 0, 29), dark)
+# Pan carrier side holes: x=+/-18, z=2 before inversion.
+# Both sides place their mounting holes on world z=27 and their tilt axes on z=70.5.
+drive_rot = App.Rotation(V(-1, 0, 0), V(0, 0, 1), V(0, 1, 0), 'ZXY')
+add('ServoSide', 'sideplateservo_std.stl', drive_rot, (-10, -22.5, 48), light)
+add('ShaftSide', 'sideplateshaft_std.stl', App.Rotation(V(1, 0, 0), 90), (-10, 22.5, 50), light)
+# Source pillow-block bore: (-11.8,24.5,11), global (-47.5,19.5,70.5).
+tilt_rot = App.Rotation(V(0, 0, 1), 180).multiply(App.Rotation(V(1, 0, 0), 180))
+add('TiltPlatform', 'tiltservomount_std.stl', tilt_rot, (-59.3, -5, 81.5), dark)
+doc.recompute()
+App.setActiveDocument(doc.Name)
+Gui.activeDocument().activeView().viewAxonometric()
+Gui.activeDocument().activeView().fitAll()
+doc.saveAs(target)
+Gui.activeDocument().activeView().saveImage(os.path.join(OUT, 'assembly.png'), 1400, 1100, 'White')
+print(target)
