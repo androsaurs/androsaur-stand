@@ -1,0 +1,77 @@
+"""Front wall cable exits at 1/4 and 3/4 of the actually exposed Base cylinder."""
+import os
+import json
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+import MeshPart
+
+OUT=os.path.dirname(os.path.abspath(__file__))
+assembly=App.getDocument('PanTiltOriginalWithUserMG996R')
+base=assembly.getObject('Base');carrier=assembly.getObject('PanCarrier')
+native=App.getDocument('HollowBase')
+if native is None:
+    native=App.openDocument(os.path.join(os.path.dirname(OUT),'hollow-base/base-hollow.FCStd'))
+if native.getObject('ChargingCablePort') is not None:
+    raise RuntimeError('Cable ports already exist')
+V=App.Vector
+placement=App.Placement(base.Placement)
+mesh=carrier.Mesh.copy();mesh.Placement=App.Placement()
+bottom=placement.multVec(V(42.5,21,4)).z
+top=min(carrier.Placement.multVec(p.Vector).z for p in mesh.Points)
+visible_height=top-bottom
+assert visible_height>0
+levels=[bottom+visible_height/4,top-visible_height/4]
+group=assembly.getObject('PhoneMount')
+front_world=group.Placement.Rotation.multVec(V(0,0,-1))
+front=placement.Rotation.inverted().multVec(front_world)
+front.z=0;front.normalize()
+rotation=App.Rotation(V(0,0,1),front)
+ports=[]
+for name,label,diameter,z in [
+    ('ChargingCablePort','Зарядка — 1/4 снизу',12,levels[0]),
+    ('MotorCablePort','Моторы — 1/4 сверху',10,levels[1]),
+]:
+    point=placement.inverse().multVec(V(placement.multVec(V(42.5,21,0)).x,
+                                       placement.multVec(V(42.5,21,0)).y,z))
+    obj=native.addObject('Part::Cylinder',name)
+    obj.Label=label;obj.Radius=diameter/2;obj.Height=22.2
+    obj.Placement=App.Placement(point,rotation)
+    ports.append(obj)
+result=native.getObject('Base');previous=result.Shape.copy()
+tools=native.addObject('Part::MultiFuse','CableOpenings')
+tools.Shapes=[native.getObject('CableCavity')]+ports
+result.Tool=tools
+native.recompute()
+assert result.Shape.isValid() and len(result.Shape.Solids)==1
+assert result.Shape.Volume<previous.Volume
+assert result.Shape.cut(previous).Volume<1e-6
+# Verify both front walls are opened while the opposite wall remains material.
+for obj in ports:
+    center=obj.Placement.Base
+    near=center+front*15
+    far=center-front*15
+    assert previous.isInside(near,1e-6,False)
+    assert not result.Shape.isInside(near,1e-6,False)
+    assert result.Shape.isInside(far,1e-6,False)
+for obj in ports+[tools,native.getObject('CableCavity'),native.getObject('OriginalBase')]:
+    obj.Visibility=False
+result.Visibility=True
+native.save()
+newmesh=MeshPart.meshFromShape(Shape=result.Shape,LinearDeflection=0.05,AngularDeflection=0.15,Relative=False)
+base.Mesh=newmesh;base.Placement=placement
+for name,value in [('VisibleRiserHeight',visible_height),('ChargingPortDiameter',12),
+                   ('MotorPortDiameter',10),('ChargingPortCenterZ',levels[0]-placement.Base.z),
+                   ('MotorPortCenterZ',levels[1]-placement.Base.z)]:
+    if name not in base.PropertiesList:base.addProperty('App::PropertyLength',name,'CablePorts')
+    setattr(base,name,value)
+assembly.recompute();assembly.save()
+for folder in [os.path.dirname(native.FileName),OUT]:
+    Part.export([result],os.path.join(folder,'base-hollow.step'))
+    newmesh.write(os.path.join(folder,'base-hollow.stl'))
+App.setActiveDocument(assembly.Name)
+Gui.Selection.clearSelection()
+print(json.dumps({'visible_height_mm':visible_height,'distance_from_each_visible_edge_mm':visible_height/4,
+                 'local_center_heights_mm':[z-placement.Base.z for z in levels],
+                 'diameters_mm':[12,10],'front_direction_base_local':list(front),
+                 'opposite_wall_preserved':True,'all_placements_unchanged':True,'valid_single_solid':True}))

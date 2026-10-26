@@ -1,0 +1,61 @@
+"""Extend only Base's cylinder; preserve sole, radial dimensions and all mating placements."""
+import os
+import math
+import json
+import FreeCAD as App
+import FreeCADGui as Gui
+import Mesh
+
+OUT=os.path.dirname(os.path.abspath(__file__))
+assembly=App.getDocument('PanTiltOriginalWithUserMG996R')
+base=assembly.getObject('Base')
+if 'RiserExtension' in base.PropertiesList:
+    raise RuntimeError('Riser already extended; do not apply twice')
+group=assembly.getObject('PhoneMount')
+holder=assembly.getObject('PhoneHolder')
+low=min(group.Placement.multVec(v.Point).z for v in holder.LinkedObject.Shape.Vertexes)
+sole_z=base.Placement.Base.z
+target_clearance=10.0
+raise_mm=float(math.ceil(sole_z+target_clearance-low))
+original=base.Mesh.copy();original.Placement=App.Placement()
+points,faces=original.Topology
+plate_top=4.0
+raised_points=[App.Vector(v.x,v.y,v.z+raise_mm if v.z>plate_top+1e-5 else v.z) for v in points]
+raised=Mesh.Mesh((raised_points,faces))
+# Original geometry consists of straight vertical walls, horizontal plates and recesses.
+# Moving only vertices above the plate extends those walls without changing X/Y or the sole.
+assert all(abs(p.x-q.x)<1e-7 and abs(p.y-q.y)<1e-7 for p,q in zip(points,raised_points))
+assert all((p-q).Length<1e-7 for p,q in zip(points,raised_points) if p.z<=plate_top+1e-5)
+assert abs(raised.BoundBox.ZMax-original.BoundBox.ZMax-raise_mm)<1e-5
+before_placements={o.Name:App.Placement(o.Placement) for o in assembly.Objects if hasattr(o,'Placement')}
+base.Mesh=raised
+base.Placement=before_placements['Base']
+base.addProperty('App::PropertyLength','RiserExtension','Design').RiserExtension=raise_mm
+base.addProperty('App::PropertyLength','RiserTopFromSole','Design').RiserTopFromSole=raised.BoundBox.ZMax
+move_names=['PanCarrier','ServoSide','ShaftSide','TiltPlatform','PanMG996R','TiltMG996R',
+            'ServoSideInsert','PlatformPlate','ServoMountTall','ServoMountShort',
+            'AxleSupport','TiltPlatformReassembled','BaseRoundHorn']
+for name in move_names:
+    obj=assembly.getObject(name)
+    pl=App.Placement(before_placements[name]);pos=App.Vector(pl.Base);pos.z+=raise_mm
+    obj.Placement=App.Placement(pos,pl.Rotation)
+# PhoneMount follows TiltPlatformReassembled by expression; do not translate it a second time.
+assembly.recompute()
+new_low=min(group.Placement.multVec(v.Point).z for v in holder.LinkedObject.Shape.Vertexes)
+assert new_low-sole_z>=target_clearance-1e-6
+assert (base.Placement.Base-before_placements['Base'].Base).Length<1e-8
+for name in move_names:
+    delta=assembly.getObject(name).Placement.Base-before_placements[name].Base
+    assert abs(delta.x)<1e-7 and abs(delta.y)<1e-7 and abs(delta.z-raise_mm)<1e-7
+assembly.save()
+raised.write(os.path.join(OUT,'base-raised.stl'))
+doc=App.newDocument('RaisedBase')
+obj=doc.addObject('Mesh::Feature','Base');obj.Mesh=raised;obj.Label='Base — ножка удлинена на '+str(raise_mm)+' мм'
+doc.recompute();doc.saveAs(os.path.join(OUT,'base-raised.FCStd'))
+App.setActiveDocument(assembly.Name)
+Gui.Selection.clearSelection()
+Gui.activeDocument().activeView().viewAxonometric();Gui.activeDocument().activeView().fitAll()
+Gui.activeDocument().activeView().saveImage(os.path.join(OUT,'assembly-raised.png'),1400,1100,'White')
+print(json.dumps({'raised_mm':raise_mm,'riser_top_from_sole_mm':raised.BoundBox.ZMax,
+                 'sole_thickness_unchanged_mm':4.0,'holder_clearance_to_sole_mm':new_low-sole_z,
+                 'base_placement_unchanged':True,'mechanism_relative_placements_preserved':True}))

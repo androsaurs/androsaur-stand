@@ -1,0 +1,68 @@
+"""Raise only the Base cylinder and entire upper mechanism by 25 mm for a cable."""
+import os
+import json
+import FreeCAD as App
+import FreeCADGui as Gui
+import Mesh
+import MeshPart
+import Part
+
+OUT=os.path.dirname(os.path.abspath(__file__))
+assembly=App.getDocument('PanTiltOriginalWithUserMG996R')
+base=assembly.getObject('Base')
+if 'TypeCExtraHeight' in base.PropertiesList:raise RuntimeError('Type-C raise already applied')
+native=App.getDocument('HollowBase')
+if native is None:
+    native=App.openDocument(os.path.join(os.path.dirname(OUT),'hollow-base/base-hollow.FCStd'))
+extension=25.0
+oldplace=App.Placement(base.Placement)
+# Extend the uncut native source, leaving the underside/sole and all X/Y unchanged.
+source=native.getObject('OriginalBase').Shape
+mesh=MeshPart.meshFromShape(Shape=source,LinearDeflection=0.05,AngularDeflection=0.15,Relative=False)
+pts,faces=mesh.Topology
+pts2=[App.Vector(v.x,v.y,v.z+extension if v.z>4.00001 else v.z) for v in pts]
+stretched=Mesh.Mesh((pts2,faces))
+surface=Part.Shape();surface.makeShapeFromMesh(stretched.Topology,1e-6)
+solid=Part.makeSolid(surface.Shells[0]).removeSplitter()
+assert solid.isValid() and len(solid.Solids)==1
+native.getObject('OriginalBase').Shape=solid
+native.getObject('CableCavity').Height=float(native.getObject('CableCavity').Height)+extension
+native.recompute()
+result=native.getObject('Base')
+assert result.Shape.isValid() and len(result.Shape.Solids)==1
+assert abs(result.Shape.BoundBox.ZMax-70)<1e-6
+resultmesh=MeshPart.meshFromShape(Shape=result.Shape,LinearDeflection=0.05,AngularDeflection=0.15,Relative=False)
+base.Mesh=resultmesh;base.Placement=oldplace
+base.RiserExtension=float(base.RiserExtension)+extension
+base.RiserTopFromSole=float(base.RiserTopFromSole)+extension
+base.CableCavityTopZ=float(base.CableCavityTopZ)+extension
+base.addProperty('App::PropertyLength','TypeCExtraHeight','Design').TypeCExtraHeight=extension
+names=['PanCarrier','ServoSide','ShaftSide','TiltPlatform','PanMG996R','TiltMG996R',
+       'ServoSideInsert','PlatformPlate','ServoMountTall','ServoMountShort',
+       'AxleSupport','TiltPlatformReassembled','BaseRoundHorn']
+for name in names:
+    obj=assembly.getObject(name);pl=App.Placement(obj.Placement)
+    pos=App.Vector(pl.Base);pos.z+=extension
+    obj.Placement=App.Placement(pos,pl.Rotation)
+# PhoneMount follows its existing expression; its child links must not be moved separately.
+assembly.recompute()
+native.save();assembly.save()
+native_out=os.path.dirname(native.FileName)
+for folder in [native_out,OUT]:
+    Part.export([result],os.path.join(folder,'base-hollow.step'))
+    resultmesh.write(os.path.join(folder,'base-hollow.stl'))
+group=assembly.getObject('PhoneMount')
+clearances={}
+for name in ['PhoneEnvelope','PhoneHolder']:
+    obj=assembly.getObject(name)
+    low=min(group.Placement.multVec(v.Point).z for v in obj.LinkedObject.Shape.Vertexes)
+    clearances[name]=low-base.Placement.Base.z
+App.setActiveDocument(assembly.Name)
+Gui.Selection.clearSelection()
+Gui.activeDocument().activeView().viewAxonometric();Gui.activeDocument().activeView().fitAll()
+Gui.activeDocument().activeView().saveImage(os.path.join(OUT,'assembly-typec-clearance.png'),1400,1100,'White')
+print(json.dumps({'extra_height_mm':extension,'cylinder_top_from_sole_mm':70,
+                 'cavity_diameter_mm':float(base.CableCavityDiameter),
+                 'cavity_ceiling_mm':float(base.CableCavityTopZ),
+                 'clearances_to_sole_mm':clearances,'sole_unchanged':True,
+                 'mechanism_moved_together':True}))

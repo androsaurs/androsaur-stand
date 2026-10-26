@@ -1,0 +1,55 @@
+"""Enlarge only the existing Base interior; keep the horn seat and all placements."""
+import os
+import json
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+import MeshPart
+
+OUT=os.path.dirname(os.path.abspath(__file__))
+target=os.path.join(OUT,'base-hollow.FCStd')
+if os.path.exists(target):raise RuntimeError('Refusing to overwrite hollow base')
+assembly=App.getDocument('PanTiltOriginalWithUserMG996R')
+base=assembly.getObject('Base')
+placement=App.Placement(base.Placement)
+mesh=base.Mesh.copy();mesh.Placement=App.Placement()
+surface=Part.Shape();surface.makeShapeFromMesh(mesh.Topology,1e-6)
+source=Part.makeSolid(surface.Shells[0]).removeSplitter()
+assert source.isValid() and len(source.Solids)==1
+
+doc=App.newDocument('HollowBase')
+original=doc.addObject('PartDesign::Feature','OriginalBase');original.Shape=source
+original.Label='Ножка до расширения отверстия'
+tool=doc.addObject('Part::Cylinder','CableCavity')
+tool.Label='Полость для проводов Ø24'
+tool.Radius=12;tool.Height=39;tool.Placement.Base=App.Vector(42.5,21,-1)
+result=doc.addObject('Part::Cut','Base');result.Base=original;result.Tool=tool
+result.Label='Base — полая ножка'
+result.addProperty('App::PropertyLength','TopSupportThickness','Design').TopSupportThickness=3
+result.addProperty('App::PropertyString','Status').Status='Internal cable cavity only; cable exits and strength/printing not tested'
+doc.recompute()
+assert result.Shape.isValid() and len(result.Shape.Solids)==1
+removed=source.cut(result.Shape).Volume
+added=result.Shape.cut(source).Volume
+assert removed>0 and added<1e-6
+# All geometry at and above cavity ceiling z=38 is exactly retained.
+top_region=Part.makeBox(100,60,20,App.Vector(-5,-5,38))
+assert source.common(top_region).cut(result.Shape).Volume<1e-6
+assert result.Shape.BoundBox.isInside(source.BoundBox)
+original.Visibility=False;tool.Visibility=False
+result.ViewObject.ShapeColor=(0.87,0.86,0.77)
+doc.saveAs(target)
+Part.export([result],os.path.join(OUT,'base-hollow.step'))
+newmesh=MeshPart.meshFromShape(Shape=result.Shape,LinearDeflection=0.05,AngularDeflection=0.15,Relative=False)
+newmesh.write(os.path.join(OUT,'base-hollow.stl'))
+base.Mesh=newmesh;base.Placement=placement
+for name,value in [('CableCavityDiameter',24),('CableCavityTopZ',38),('SeatSupportThickness',3)]:
+    if name not in base.PropertiesList:base.addProperty('App::PropertyLength',name,'Design')
+    setattr(base,name,value)
+assembly.recompute();assembly.save()
+App.setActiveDocument(assembly.Name)
+Gui.Selection.clearSelection()
+print(json.dumps({'cavity_diameter_mm':24,'cavity_top_local_z_mm':38,'nominal_wall_mm':6.2,
+                 'horn_floor_local_z_mm':41,'support_under_horn_mm':3,
+                 'removed_mm3':removed,'added_mm3':added,'valid':result.Shape.isValid(),
+                 'all_placements_unchanged':True,'horn_seat_unchanged':True}))
