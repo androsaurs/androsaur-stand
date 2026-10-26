@@ -1,0 +1,62 @@
+"""Photo-guided assembly study; placements are provisional, not manufacturing CAD."""
+import os
+import FreeCAD as App
+import FreeCADGui as Gui
+import Mesh
+
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+OUT = os.path.join(ROOT, 'experiments', 'pan-tilt-stl')
+target = os.path.join(OUT, 'pan-tilt-review.FCStd')
+if os.path.exists(target):
+    raise RuntimeError('Review exists: edit it rather than overwrite it')
+meshes = Mesh.Mesh(os.path.join(ROOT, 'references/pan-tilt-stl/pan-tilt-all-pieces.stl')).getSeparateComponents()
+doc = App.newDocument('PanTiltAssemblyStudy')
+group = doc.addObject('App::Part', 'AssemblyStudy')
+group.addProperty('App::PropertyString', 'Status').Status = 'Photo-guided reconstruction; fits and hardware unverified'
+
+def place(index, name, rotation, anchor, destination, color):
+    obj = doc.addObject('Mesh::Feature', name)
+    obj.Mesh = meshes[index - 1]
+    obj.Placement = App.Placement(App.Vector(*destination) - rotation.multVec(App.Vector(*anchor)), rotation)
+    obj.ViewObject.ShapeColor = color
+    obj.addProperty('App::PropertyInteger', 'SourcePiece').SourcePiece = index
+    group.addObject(obj)
+    return obj
+
+orange = (0.83, 0.48, 0.19)
+dark = (0.24, 0.28, 0.32)
+place(1, 'Base', App.Rotation(), (47.5, -46, 0), (0, 0, 0), dark)
+place(2, 'PanServoCarrier', App.Rotation(App.Vector(1, 0, 0), 180), (-31.5, -63, 20), (0, 0, 12), dark)
+# Side axes are aligned from their circular silhouettes. Flange fits remain provisional.
+place(4, 'DriveSide', App.Rotation(App.Vector(1, 0, 0), 90), (80.5, 52, 0), (-20, 21, 79), orange)
+place(6, 'ClampStrip', App.Rotation(App.Vector(1, 0, 0), 90), (43, 4, 0), (-57.5, 24, 39), dark)
+support_rotation = App.Rotation(App.Vector(0, 0, 1), 180).multiply(App.Rotation(App.Vector(1, 0, 0), 90))
+place(3, 'SupportSideAndShelf', support_rotation, (-78.307, 25.167, 0), (-20, -21, 79), orange)
+place(5, 'TiltPlatform', App.Rotation(App.Vector(1, 0, 0), 180), (-23, 65.5, 18.73), (-20, 0, 79), dark)
+
+# Existing unverified standard-size servo envelope, not a certified MG996R model.
+doc.saveAs(target)
+source_path = os.path.join(ROOT, 'cad/components/servo-reference/servo-352944.FCStd')
+servo_doc = next((d for d in App.listDocuments().values() if d.FileName == source_path), None)
+if servo_doc is None:
+    servo_doc = App.openDocument(source_path)
+candidates = [o for o in servo_doc.Objects if hasattr(o, 'Shape') and not o.Shape.isNull() and o.ViewObject.Visibility]
+servo = max(candidates, key=lambda o: o.Shape.Volume)
+for name, rotation, destination in [
+    ('PanServoEnvelope', App.Rotation(App.Vector(0, 0, 1), 180).multiply(App.Rotation(App.Vector(1, 0, 0), 180)), (0, 0, 8)),
+    ('TiltServoEnvelope', App.Rotation(App.Vector(1, 0, 0), -90).multiply(App.Rotation(App.Vector(0, 0, 1), 180)), (-20, 21, 79)),
+]:
+    link = doc.addObject('App::Link', name)
+    link.setLink(servo)
+    link.LinkTransform = True
+    link.Placement = App.Placement(App.Vector(*destination) - rotation.multVec(App.Vector(-10.1, 0, 41.9)), rotation)
+    link.addProperty('App::PropertyString', 'Caution').Caution = 'Existing reference envelope; MG996R dimensions and mounting not verified'
+    group.addObject(link)
+
+doc.recompute()
+App.setActiveDocument(doc.Name)
+Gui.activeDocument().activeView().viewAxonometric()
+Gui.activeDocument().activeView().fitAll()
+doc.saveAs(target)
+Gui.activeDocument().activeView().saveImage(os.path.join(OUT, 'assembly-review.png'), 1400, 1100, 'White')
+print(target)
