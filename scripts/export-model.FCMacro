@@ -1,0 +1,38 @@
+"""Refresh part exports and the assembled preview from current FCStd sources."""
+import os
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+import Mesh
+import MeshPart
+
+ROOT=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+roots={'base':'Base','tilt-horn':'Insert','pan-horn':'RoundHorn','phone-holder':'Holder'}
+for name in ['base','pan-carrier','servo-side','shaft-side','tilt-platform','tilt-horn','pan-horn','phone-holder']:
+    path=os.path.join(ROOT,'cad/parts',name,name+'.FCStd')
+    doc=next((d for d in App.listDocuments().values() if d.FileName==path),None)
+    if doc is None:doc=App.openDocument(path)
+    doc.recompute()
+    obj=doc.getObject(roots.get(name,'Part'))
+    folder=os.path.join(ROOT,'exports/parts',name);os.makedirs(folder,exist_ok=True)
+    if name=='tilt-platform':
+        mesh=Mesh.Mesh()
+        for child in obj.Group:
+            piece=child.Mesh.copy();piece.Placement=App.Placement()
+            piece.transform(child.Placement.toMatrix());mesh.addMesh(piece)
+    elif obj.TypeId=='Mesh::Feature':
+        mesh=obj.Mesh.copy();mesh.Placement=App.Placement()
+    else:
+        Part.export([obj],os.path.join(folder,name+'.step'))
+        mesh=MeshPart.meshFromShape(Shape=obj.Shape,LinearDeflection=0.05,AngularDeflection=0.15,Relative=False)
+    mesh.write(os.path.join(folder,name+'.stl'))
+path=os.path.join(ROOT,'cad/assemblies/stand.FCStd')
+doc=next((d for d in App.listDocuments().values() if d.FileName==path),None)
+if doc is None:doc=App.openDocument(path)
+for _ in range(3):
+    for d in App.listDocuments().values():
+        if d.FileName.startswith(os.path.join(ROOT,'cad')+os.sep):d.recompute()
+App.setActiveDocument(doc.Name)
+Gui.activeDocument().activeView().viewAxonometric();Gui.activeDocument().activeView().fitAll()
+Gui.activeDocument().activeView().saveImage(os.path.join(ROOT,'exports/assemblies/stand.png'),1400,1100,'White')
+print('Exports refreshed; FCStd sources were not modified or saved.')

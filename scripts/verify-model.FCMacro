@@ -1,0 +1,35 @@
+"""Read-only integrity check of the current linked model. Run via FreeCAD MCP."""
+import os
+import json
+import FreeCAD as App
+
+ROOT=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+path=os.path.join(ROOT,'cad/assemblies/stand.FCStd')
+stand=next((d for d in App.listDocuments().values() if d.FileName==path),None)
+if stand is None:stand=App.openDocument(path)
+for _ in range(3):
+    for doc in App.listDocuments().values():
+        if doc.FileName.startswith(os.path.join(ROOT,'cad')+os.sep):doc.recompute()
+docs=[d for d in App.listDocuments().values() if d.FileName.startswith(os.path.join(ROOT,'cad')+os.sep)]
+links=[]
+for doc in docs:
+    for obj in doc.Objects:
+        assert 'Invalid' not in obj.State,(doc.FileName,obj.Name,obj.getStatusString())
+        if obj.TypeId=='App::Link':
+            assert obj.LinkedObject is not None,(doc.Name,obj.Name)
+            assert obj.LinkedObject.Document.FileName.startswith(os.path.join(ROOT,'cad')+os.sep)
+            links.append(doc.Name+'.'+obj.Name)
+pan=stand.getObject('PanTilt');phone=stand.getObject('PhoneHolder')
+module=pan.LinkedObject.Document
+assert module.getObject('PanMG996R').LinkedObject==module.getObject('TiltMG996R').LinkedObject
+expected=pan.Placement.multiply(pan.PhoneInterface)
+assert (phone.Placement.Base-expected.Base).Length<1e-6
+assert phone.Placement.Rotation.multiply(expected.Rotation.inverted()).Angle<1e-6
+for name,file in [('base','Base'),('tilt-horn','Insert'),('pan-horn','RoundHorn'),('phone-holder','Holder')]:
+    sourcepath=os.path.join(ROOT,'cad/parts',name,name+'.FCStd')
+    doc=next(d for d in docs if d.FileName==sourcepath)
+    obj=doc.getObject(file)
+    assert obj.Shape.isValid() and len(obj.Shape.Solids)==1,(name,'invalid solid')
+print(json.dumps({'passed':True,'documents':len(docs),'links':len(links),
+                  'shared_servo_source':True,'phone_interface_follows':True,
+                  'does_not_verify':['loads','physical_fits','printability','spline_coupling']},ensure_ascii=False))

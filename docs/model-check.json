@@ -1,0 +1,31 @@
+{
+  "model": "cad/assemblies/stand.FCStd",
+  "checked_on": "2026-10-27",
+  "source_checkpoint": "9d254f3",
+  "documents": 13,
+  "app_links": 13,
+  "broken_links": 0,
+  "migration": {
+    "compared_placements": 9,
+    "max_position_error_mm": 7.105427357601002e-15,
+    "rotation_error_rad": 0,
+    "shared_servo_mesh_unchanged": true,
+    "platform_point_set_unchanged": true
+  },
+  "relocated_copy": {
+    "opened_documents": 13,
+    "all_link_sources_inside_copy": true,
+    "invalid_objects": 0,
+    "phone_follows_pan_test_degrees": 15,
+    "phone_follows_tilt_test_degrees": 10,
+    "test_pose_restored": true,
+    "working_model_not_modified_by_tests": true
+  },
+  "not_verified": [
+    "physical servo and horn fits",
+    "spline engagement",
+    "printability and manufacturing tolerances",
+    "load capacity and stability",
+    "continuous collision-free motion"
+  ]
+}
