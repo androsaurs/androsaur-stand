@@ -1,0 +1,4 @@
+Pan and Tilt for Standard Servo by micromet on Thingiverse: https://www.thingiverse.com/thing:1941574
+
+Summary:
+Pan and Tilt for Standard Servohttps://hobbyking.com/en_us/hobbykingtm-high-torque-analog-servo-waterproof-4-5kg-0-13sec-40g.htmlDesigned with Openscad after the excellent design published by blister for micro servoshttp://www.thingiverse.com/thing:1401116Also included is an example sensor mounting plate for the Melexis Infrared thermometer in TO-39 metal can // digi-Key part MLX90614ESF-BCI-000-TU-NDPan servo can be modified for 180 degree rotation- I used two 2.2K resistors on the feedback potentiometer. The HK servos were a little "buzzy" when converted to 180. 

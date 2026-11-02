@@ -1,6 +1,6 @@
 # Интерфейсы подсборок
 
-Единицы — мм. Корень pan-tilt.FCStd: `Module`. Его начало — центр основания
+Единицы — мм. Корень pan-tilt-brep.FCStd: `Module`. Его начало — центр основания
 на плоскости подошвы. Оси сохраняют ориентацию принятой модели: Z вверх,
 фасад к телефону — +X, ось наклона — вдоль Y.
 
@@ -10,7 +10,7 @@
 | PhoneInterface / PhoneMount | Module механизма | Полная система координат площадки, следует за Pan и Tilt |
 | MountInterface / Mount | Module держателя | Входной интерфейс, Placement единичный |
 
-В общей сборке источник PanTilt — `Module` из pan-tilt.FCStd; источник PhoneHolder —
+В общей сборке источник PanTilt — `Module` из pan-tilt-brep.FCStd; источник PhoneHolder —
 `Module` из phone-holder.FCStd. Корневой Placement PanTilt сохраняет принятое
 мировое положение модели. Связь держателя: `PanTilt.Placement * PanTilt.PhoneInterface`.
 Это связь координат, не расчёт сил и не решатель механических контактов.

@@ -11,10 +11,10 @@
 | Что открыть | Для чего |
 | --- | --- |
 | [stand.FCStd](cad/assemblies/stand.FCStd) | Общая компоновка из подсборок |
-| [pan-tilt.FCStd](cad/assemblies/pan-tilt.FCStd) | Механизм с основанием и двумя серво |
+| [pan-tilt-brep.FCStd](cad/assemblies/pan-tilt-brep.FCStd) | Механизм с основанием и двумя серво на деталях BRep ([описание](docs/pan-tilt-brep.md)) |
 | [phone-holder.FCStd](cad/assemblies/phone-holder.FCStd) | Держатель с макетом телефона |
 | [base.FCStd](cad/parts/base/base.FCStd) | Редактирование ножки, полости и кабельных окон |
-| [mg996r.FCStd](cad/components/mg996r/mg996r.FCStd) | Общий компонент для обоих серво |
+| [mg996r-brep.FCStd](cad/components/mg996r-brep/mg996r-brep.FCStd) | Общий BRep-габарит для обоих серво; сетка владельца — [mg996r.FCStd](cad/components/mg996r/mg996r.FCStd) |
 
 Детали хранятся в `cad/parts/`, покупные компоненты — в `cad/components/`.
 Сборки содержат ссылки, а не копии исходной геометрии. Новый корпус электроники

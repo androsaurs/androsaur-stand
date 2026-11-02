@@ -1,11 +1,12 @@
 part_id,quantity,kind,source
 base,1,part,cad/parts/base/base.FCStd
-pan-carrier,1,part,cad/parts/pan-carrier/pan-carrier.FCStd
-servo-side,1,part,cad/parts/servo-side/servo-side.FCStd
-shaft-side,1,part,cad/parts/shaft-side/shaft-side.FCStd
-tilt-platform,1,part,cad/parts/tilt-platform/tilt-platform.FCStd
+pan-carrier-brep,1,part,cad/parts/pan-carrier-brep/pan-carrier-brep.FCStd
+servo-side-brep,1,part,cad/parts/servo-side-brep/servo-side-brep.FCStd
+shaft-side-brep,1,part,cad/parts/shaft-side-brep/shaft-side-brep.FCStd
+tilt-platform-brep,1,part,cad/parts/tilt-platform-brep/tilt-platform-brep.FCStd
 tilt-horn,1,part,cad/parts/tilt-horn/tilt-horn.FCStd
 pan-horn,1,part,cad/parts/pan-horn/pan-horn.FCStd
 phone-holder,1,part,cad/parts/phone-holder/phone-holder.FCStd
-mg996r,2,component,cad/components/mg996r/mg996r.FCStd
+mg996r-brep,2,component,cad/components/mg996r-brep/mg996r-brep.FCStd
+mg996r,0,reference,cad/components/mg996r/mg996r.FCStd
 phone,1,envelope,cad/components/phone/phone.FCStd

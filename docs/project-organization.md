@@ -1,29 +1,32 @@
 # Организация моделей
 
-Актуальная структура после очистки 2026-10-27. В рабочем дереве одна конструкция.
+Актуальная структура после перехода на детали BRep, 2026-11-02. В рабочем дереве одна конструкция.
 
 ```text
 cad/
 ├── components/                 # покупные изделия и габариты
-│   ├── mg996r/mg996r.FCStd      # один источник, два экземпляра
+│   ├── mg996r-brep/mg996r-brep.FCStd  # BRep-габарит, один источник, два экземпляра
+│   ├── mg996r/mg996r.FCStd      # пользовательская сетка: источник и эталон для BRep
 │   └── phone/phone.FCStd
 ├── parts/                      # изготовляемые детали
 │   ├── base/base.FCStd
-│   ├── pan-carrier/pan-carrier.FCStd
-│   ├── servo-side/servo-side.FCStd
-│   ├── shaft-side/shaft-side.FCStd
-│   ├── tilt-platform/tilt-platform.FCStd
+│   ├── pan-carrier-brep/pan-carrier-brep.FCStd
+│   ├── servo-side-brep/servo-side-brep.FCStd
+│   ├── shaft-side-brep/shaft-side-brep.FCStd
+│   ├── tilt-platform-brep/tilt-platform-brep.FCStd
 │   ├── tilt-horn/tilt-horn.FCStd
 │   ├── pan-horn/pan-horn.FCStd
-│   └── phone-holder/phone-holder.FCStd
+│   ├── phone-holder/phone-holder.FCStd
+│   └── phone-holder-body, phone-grip-82mm, phone-adapter-plate   # держатель из двух деталей
 └── assemblies/
-    ├── pan-tilt.FCStd           # механизм
+    ├── pan-tilt-brep.FCStd      # механизм
     ├── phone-holder.FCStd       # держатель и телефон
+    ├── phone-holder-two-piece.FCStd  # держатель из двух деталей (в stand не установлен)
     └── stand.FCStd              # общая компоновка
 exports/                        # снимки для обмена и изготовления
 references/                     # оригиналы сторонних материалов
 docs/                           # текущая документация
-scripts/                        # проверка
+scripts/                        # проверка и построение (build-*.FCMacro)
 ```
 
 Деталь — один документ. Геометрию редактировать в нём. Покупное изделие
@@ -49,3 +52,8 @@ BaseInterface механизма. До этого пустые заготовк�
 `before-modular-layout`, а не каталоги old/final/v2. Экспорты не являются источником
 геометрии и обновляются после изменения FCStd. Проверенный печатный комплект
 пока не выпускался.
+
+
+Замена 2026-11-02: сеточный механизм `pan-tilt.FCStd` и сеточные детали заменены на BRep
+(`docs/pan-tilt-brep.md`). Старое состояние — коммит `a86b0bd` в Git. Эксперименты по превращению
+STL в BRep перенесены вне репозитория в `/mnt/fastdata/hram/archive/androsaur-stand-brep-experiments-20261102`.

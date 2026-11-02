@@ -1,0 +1,195 @@
+# Построение BRep-деталей Pan & Tilt (Thingiverse 1941574, micromet) по SCAD из архива.
+# Источники размеров: references/1941574-fresh-20261027/scad/*.scad.
+# Круглые поверхности аналитические. Существующие файлы не перезаписываются.
+import os
+import Part
+import FreeCAD as App
+from FreeCAD import Vector as V
+
+REPO = "/mnt/fastdata/hram/projects/androsaurs/androsaur-stand"
+# Сдвиг блоков крепления серво вместе с рёбрами вдоль оси Y платформы.
+# Нужен для MG996R: уши опускаются на грань блока при принятом положении серво.
+SERVO_MOUNT_SHIFT_Y = 1.315149841
+
+
+def box(x, y, z, p=(0, 0, 0), center=False):
+    b = Part.makeBox(x, y, z)
+    off = V(-x / 2, -y / 2, -z / 2) if center else V(0, 0, 0)
+    b.translate(off + V(*p))
+    return b
+
+
+def cylz(r, h, p, center=False):
+    return Part.makeCylinder(r, h, V(p[0], p[1], p[2] - (h / 2 if center else 0)), V(0, 0, 1))
+
+
+def cyly(r, h, p):
+    c = Part.makeCylinder(r, h, V(0, 0, -h / 2), V(0, 0, 1))
+    c.rotate(V(0, 0, 0), V(1, 0, 0), 90)
+    c.translate(V(*p))
+    return c
+
+
+def union(*s):
+    r = s[0]
+    for x in s[1:]:
+        r = r.fuse(x)
+    return r
+
+
+def cut(a, *s):
+    for x in s:
+        a = a.cut(x)
+    return a
+
+
+def moved(shape, dy):
+    s = shape.copy()
+    s.translate(V(0, dy, 0))
+    return s
+
+
+def wsupport(x, y):
+    a = box(x, y, x)
+    c = box(x * 1.7, y, x * 1.7)
+    c.rotate(V(0, 0, 0), V(0, 1, 0), -45)
+    return a.cut(c)
+
+
+def wsup(x, y, p, rz):
+    w = wsupport(x, y)
+    w.rotate(V(0, 0, 0), V(0, 0, 1), rz)
+    w.translate(V(*p))
+    return w
+
+
+def diag_cut(w, l, thick, c, ang):
+    b = box(w, l, thick, (0, 0, 0), center=True)
+    b.rotate(V(0, 0, 0), V(0, 0, 1), ang)
+    b.translate(V(*c))
+    return b
+
+
+def rcube(x, y, z, r):
+    cs = [cylz(r, z, (r, r, 0)), cylz(r, z, (x - r, r, 0)),
+          cylz(r, z, (r, y - r, 0)), cylz(r, z, (x - r, y - r, 0))]
+    return union(box(x - 2 * r, y, z, (r, 0, 0)), box(x, y - 2 * r, z, (0, r, 0)), *cs)
+
+
+def pan_carrier():
+    """PanMount7.scad — лоток нижнего серво."""
+    xd, yd = 61, 42
+    s = union(box(xd, yd, 10, (0, 0, 2), center=True),
+              cylz(yd / 2, 10, (10, 0, 12), center=True))
+    cuts = [cylz((40 - 3) / 2, 10, (10, 0, 14.5), center=True),
+            cylz(14 / 2, 30, (10, 0, 0), center=True),
+            box(55, 20.4, 3, (0, 0, -1.5), center=True),
+            box(41, 20.4, 11, (0, 0, 10 / 2 - 2.5), center=True),
+            box(55, 2.4, 4, (0, 0, 2), center=True)]
+    for sx in (1, -1):
+        for sy in (1, -1):
+            cuts.append(cylz(1.0, 12, (sx * (55 / 2 - 5.5 / 2), sy * 10 / 2, 0), center=True))
+    for x in (-18, 18):
+        cuts.append(cyly(2.5 / 2, yd + 10, (x, 0, 2)))
+    return cut(s, *cuts)
+
+
+def tilt_platform(shift_y=SERVO_MOUNT_SHIFT_Y):
+    """tiltservomount_std.scad — площадка наклона.
+    Блоки серво, их рёбра и отверстия под уши сдвинуты на shift_y вдоль Y."""
+    plate = box(63, 55, 3, (-1.5, 0, 0), center=True)
+    blocks = [moved(box(10, 12, 21, (24, -6, 10), center=True), shift_y),
+              moved(box(10, 12, 11, (-27, -6, 5.5), center=True), shift_y)]
+    block_ribs = [moved(wsup(10, 10, (19, 9.5, 1), -90), shift_y),
+                  moved(wsup(10, 10, (-32, 9.5, 1), -90), shift_y)]
+    axle = [cyly(6, 6, (-11.8, 24.5, 11)),
+            box(12, 6, 12, (-11.8, 24.5, 5), center=True),
+            wsup(15, 6, (-30, 23.5 - 2, 1), 0),
+            wsup(15, 6, (10 - 6 + 2.5, 27.5, 1), -180)]
+    s = union(plate, *blocks, *block_ribs, *axle)
+    cuts = [moved(cyly(1.2, 55, (x, -7.5, z)), shift_y) for x in (23, -26) for z in (16.5, 6.5)]
+    cuts += [cyly(3.2, 56, (-11.8, 0, 11)), cylz(16, 6, (0, 0, 0), center=True)]
+    for p in ((60 / 2 - 7, 54 / 2 - 10), (60 / 2 - 7, -54 / 2 + 6),
+              (-54 / 2, -54 / 2 + 6), (-54 / 2, 54 / 2 - 10)):
+        cuts.append(cylz(3 / 2, 4, (p[0], p[1], 0), center=True))
+    return cut(s, *cuts)
+
+
+def side_plate_servo():
+    """sideplateservo_std.scad — боковина со стороны серво наклона."""
+    s = union(box(60, 56, 3, (0, 2, 0), center=True),
+              cylz(15 / 2, 6, (-60 / 2 - 15 / 2, 60 / 2 - 15 / 2, -1.5), center=True),
+              box(26, 15, 6, (-60 / 2 - 15 + 15 / 2, 60 / 2 - 15, -4.5)))
+    cuts = [cylz(20 / 2, 3, (-5, -5, 0), center=True),
+            cylz(3.0 / 2, 3, (-18, -60 / 2 + 9, 0), center=True),
+            cylz(3.0 / 2, 3, (18, -60 / 2 + 9, 0), center=True),
+            diag_cut(60 / 2, 60, 3, (60 / 4 + 5, 60 / 4 + 5, 0), 45),
+            cylz(8.5 / 2, 10, (-60 / 2 - 15 / 2, 60 / 2 - 15 / 2, 0), center=True),
+            cylz(2 / 2, 10, (-60 / 2 - 15 / 2 + 10.5 + 0.5, 60 / 2 - 15 / 2, 0), center=True),
+            cylz(2 / 2, 10, (-60 / 2 - 15 / 2 + 17 + 0.5, 60 / 2 - 15 / 2, 0), center=True)]
+    p = cut(s, *cuts)
+    p.rotate(V(0, 0, 0), V(0, 1, 0), 180)
+    arm_len, end_d, cen_d, h = 22, 6, 11, 5
+    c1 = Part.makeCylinder(end_d / 2, h, V(0, arm_len - end_d / 2, -h / 2))
+    c2 = box(cen_d, 2, h, (0, 1, 0), center=True)
+    x0 = cen_d / 2
+    y_end = arm_len - end_d / 2
+    y_cube = y_end + (1 - arm_len + end_d / 2)
+    quad = Part.Face(Part.makePolygon([V(-x0, y_cube + 1, -h / 2), V(x0, y_cube + 1, -h / 2),
+                                       V(end_d / 2, y_end, -h / 2), V(-end_d / 2, y_end, -h / 2),
+                                       V(-x0, y_cube + 1, -h / 2)]))
+    arm = union(c1, c2, quad.extrude(V(0, 0, h)))
+    arm.rotate(V(0, 0, 0), V(0, 0, 1), 90)
+    arm.translate(V(60 / 2 + 15 / 2, 60 / 2 - 15 / 2, 4))
+    hub = cylz(11 / 2, 5, (60 / 2 + 15 / 2, 60 / 2 - 15 / 2, 4), center=True)
+    return cut(p, arm, hub)
+
+
+def side_plate_shaft():
+    """sideplateshaft_std.scad — боковина с выступом-штифтом оси наклона."""
+    s = union(box(60, 56, 3, (0, 0, 0), center=True),
+              cylz(15 / 2, 3, (-60 / 2 - 15 / 2, 60 / 2 - 15 / 2 - 2, 0), center=True),
+              box(15, 15, 3, (-60 / 2 - 15 + 15 / 2, 60 / 2 - 15 - 2, -3 / 2)),
+              cylz(6 / 2, 5, (-60 / 2 - 15 / 2, 60 / 2 - 15 / 2 - 2, 4), center=True))
+    cuts = [cylz(20 / 2, 3, (-7, -5, 0), center=True),
+            cylz(3.0 / 2, 3, (-18, -60 / 2 + 5 + 2, 0), center=True),
+            cylz(3.0 / 2, 3, (18, -60 / 2 + 5 + 2, 0), center=True),
+            diag_cut(65 / 2, 65, 3, (55 / 4 + 5, 55 / 4 + 5, 0), 45)]
+    return cut(s, *cuts)
+
+
+# каталог -> (подпись, построитель, SCAD-источник, опорный объём STL из архива, мм³)
+PARTS = {
+    "pan-carrier-brep": ("Крепление нижнего серво (BRep)", pan_carrier, "PanMount7.scad", 20905.3),
+    "servo-side-brep": ("Боковина со стороны качалки (BRep)", side_plate_servo, "sideplateservo_std.scad", 7713.1),
+    "shaft-side-brep": ("Боковина с выступом (BRep)", side_plate_shaft, "sideplateshaft_std.scad", 7003.9),
+    "tilt-platform-brep": ("Площадка наклона (BRep)", tilt_platform, "tiltservomount_std.scad", 13596.5),
+}
+
+
+def build_all(repo=REPO):
+    made = {}
+    for key, (label, builder, scad, stl_volume) in PARTS.items():
+        path = os.path.join(repo, "cad", "parts", key, key + ".FCStd")
+        if os.path.exists(path):
+            App.Console.PrintWarning("exists, skipped: %s\n" % path)
+            continue
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        shape = builder()
+        doc = App.newDocument(key.replace("-", "_"))
+        part = doc.addObject("Part::Feature", "Part")
+        part.Label = label
+        part.Shape = shape
+        sheet = doc.addObject("Spreadsheet::Sheet", "Dimensions")
+        rows = [("Источник", "references/1941574-fresh-20261027/scad/" + scad),
+                ("Объём STL, мм³", stl_volume), ("Объём BRep, мм³", round(shape.Volume, 1)),
+                ("Построение", "scripts/build-brep-parts.FCMacro")]
+        if key == "tilt-platform-brep":
+            rows.append(("Сдвиг блоков серво по Y, мм", SERVO_MOUNT_SHIFT_Y))
+        for i, (k, v) in enumerate(rows, 1):
+            sheet.set("A%d" % i, str(k))
+            sheet.set("B%d" % i, str(v) if isinstance(v, str) else repr(v))
+        doc.recompute()
+        doc.saveAs(path)
+        made[key] = (path, round(shape.Volume, 1), shape.isValid(), len(shape.Solids))
+    return made

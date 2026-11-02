@@ -6,7 +6,7 @@
 Перед работой прочитать README.md, docs/part-names.md, docs/project-organization.md,
 docs/interfaces.md и docs/working-with-model.md. Требования — docs/requirements.md.
 
-Главный файл: cad/assemblies/stand.FCStd. Модули: pan-tilt.FCStd и
+Главный файл: cad/assemblies/stand.FCStd. Модули: pan-tilt-brep.FCStd и
 phone-holder.FCStd в том же каталоге. Внешние ссылки требуют всего дерева cad/.
 Единственный источник геометрии каждой детали — её FCStd в parts/ или components/.
 Не создавать копии деталей в общей сборке и не добавлять прежние эксперименты.
