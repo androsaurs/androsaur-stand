@@ -5,7 +5,7 @@
 с динамиком, ESP32, усилителем и блоком питания. Часть проекта [Androsaur](https://github.com/androsaurs).
 
 Модель параметрическая, написана на **Python / build123d** (BRep, не сетка) и лежит в [`cadpy/`](cadpy/).
-Прежняя модель во FreeCAD сохранена как архив ([`cad/`](cad/), [`docs/legacy-freecad/`](docs/legacy-freecad/README.md)) и не развивается.
+Прежняя модель во FreeCAD удалена из рабочего дерева; она осталась в истории git (коммит `9d254f3`).
 
 ![Сборка](docs/img/assembly.png)
 
@@ -49,7 +49,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 | [`cadpy/check.py`](cadpy/check.py), [`pancheck.py`](cadpy/pancheck.py) | Проверка пересечений при наклоне и повороте |
 | [`cadpy/view.py`](cadpy/view.py), [`palette.py`](cadpy/palette.py) | Живой просмотр и цвета деталей |
 | [`cadpy/export.py`](cadpy/export.py), [`shots.py`](cadpy/shots.py) | Экспорт в STEP, картинки |
-| [`exports/`](exports/) | STEP сборки и прежние экспорты FreeCAD |
+| [`exports/`](exports/) | STEP сборки и проект FreeCAD с той же геометрией (для просмотра и обмена) |
 | [`references/`](references/README.md) | Источники сторонних материалов (micromet, MG996R, держатель) |
 | [`docs/`](docs/) | Документация |
 

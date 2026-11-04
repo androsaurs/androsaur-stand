@@ -2,8 +2,8 @@
 
 Dimensions were read off the owner-supplied STL files in
 references/phone-holder-two-piece (author and licence unknown). Placement of the
-two parts relative to each other and to the phone is taken from
-cad/assemblies/phone-holder-two-piece.FCStd.
+two parts relative to each other and to the phone was taken from the owner's
+FreeCAD assembly of the two pieces (removed from the tree, see git commit 9d254f3).
 
 Assembly frame: Z up along the phone height from the lower stop, X across the
 phone, Y forward (towards the phone). Units: mm.

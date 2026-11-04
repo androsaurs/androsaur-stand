@@ -89,7 +89,7 @@ def base():
     p = fillet(p.edges().filter_by(Axis.Z), 4)
     cx, cy = BASE_L / 2, BASE_W / 2
     p += cz(LEG_R, RISER, cx, cy, 0)
-    p -= cz(CAVITY_R, CAVITY_TOP + 1, cx, cy, -1)   # open through the sole, as in base.FCStd
+    p -= cz(CAVITY_R, CAVITY_TOP + 1, cx, cy, -1)   # open through the sole (as in the original model)
     p -= cz(4.2, RISER, cx, cy, CAVITY_TOP - 1)
     p -= cz(10.7, SEAT_DEPTH, cx, cy, RISER - SEAT_DEPTH)
     for dx, dy in ((-7.8, 0), (7.8, 0), (0, -7.8), (0, 7.8)):

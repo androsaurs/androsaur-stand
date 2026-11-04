@@ -25,5 +25,4 @@
 | `psu` | Блок питания, куб-заглушка 60 × 38 × 26 | amp.py |
 
 «Ножка» (подставки) — цилиндр `base`, на который надет `carrier`. Не путать с «ножками корпуса» (`foot0`…`foot3`) и
-«ножками полки» (три стойки полки). Старые названия во FreeCAD (`PanCarrier`, `ServoSide`, `ShaftSide`, `TiltPlatform` и др.) —
-в [docs/legacy-freecad/part-names.md](legacy-freecad/part-names.md).
+«ножками полки» (три стойки полки). Прежние названия во FreeCAD (`PanCarrier`, `ServoSide`, `ShaftSide`, `TiltPlatform` и др.) остались только в истории git.

@@ -1,8 +1,7 @@
 # Androsaur Stand: модель на build123d
 
-Главная модель — код в `cadpy/` (Python, build123d, BRep). FreeCAD-модель в `cad/` и макросы `scripts/*.FCMacro` — архив
-(владелец отказался от FreeCAD 2026-11-04); документы по ней лежат в `docs/legacy-freecad/`. Dispatch в текущей сессии
-запрещён владельцем.
+Главная модель — код в `cadpy/` (Python, build123d, BRep). Прежняя модель во FreeCAD и её макросы удалены из рабочего дерева
+(владелец отказался от FreeCAD 2026-11-04); они остались только в истории git. Dispatch в текущей сессии запрещён владельцем.
 
 Перед работой прочитать README.md, docs/design.md, docs/enclosure.md, docs/part-names.md, docs/interfaces.md,
 docs/model-guide.md и docs/open-issues.md. Требования — docs/requirements.md.
@@ -18,5 +17,5 @@ docs/model-guide.md и docs/open-issues.md. Требования — docs/requir
 Сообщать численные результаты. Архивные источники в `references/` не редактировать. Размеры и допущения записывать
 (в коде и в документах); новые названия — в docs/part-names.md, состав — docs/bom.csv.
 
-История состояния до перехода на build123d: git-метка `before-modular-layout` (9d254f3). Старые макросы и FCStd в рабочую
-модель не возвращать без отдельной задачи.
+История состояния до перехода на build123d: коммит 9d254f3 в истории git. Старые файлы FreeCAD в рабочее дерево
+не возвращать без отдельной задачи.
