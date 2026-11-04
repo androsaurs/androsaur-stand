@@ -5,7 +5,7 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from pantilt import assemble
 
 COL = {"base": "#c9c3a8", "carrier": "#3a3a3f", "servo_pan": "#6f7f8f", "plate_horn": "#f2f2f2",
-       "plate_shaft": "#e4e4e4", "platform": "#2d2d33", "holder": "#d9772b", "body": "#d9772b", "grip": "#e8b04a", "phone": "#4a7fb5", "plug": "#222222", "cable": "#111111", "servo_tilt": "#6f7f8f"}
+       "plate_shaft": "#e4e4e4", "platform": "#2d2d33", "holder": "#d9772b", "body": "#d9772b", "grip": "#e8b04a", "phone": "#4a7fb5", "plug": "#222222", "speaker": "#3a3a3a", "shelf": "#c9a66b", "psu": "#e8c547", "amp": "#f39c12", "dac": "#9b59b6", "esp32": "#1d5c3a", "foot0": "#555", "foot1": "#555", "foot2": "#555", "foot3": "#555", "box_lower": "#8aa0b8", "box_upper": "#b8c4d0", "cable": "#111111", "servo_tilt": "#6f7f8f"}
 
 def tris(parts):
     T, C = [], []
@@ -34,7 +34,7 @@ def render(tilt, views, out, pan=0):
         light = np.array([np.cos(e) * np.cos(a - .6), np.cos(e) * np.sin(a - .6), np.sin(e) + .4]); light /= np.linalg.norm(light)
         pc = Poly3DCollection(T, facecolors=shade(T, C, light), edgecolor=(0, 0, 0, .12), linewidths=.15)
         ax.add_collection3d(pc)
-        mid = np.array([60, 21, 105.]); r = 110
+        mid = np.array([60, 21, 80.]); r = 120
         ax.set_xlim(mid[0] - r, mid[0] + r); ax.set_ylim(mid[1] - r, mid[1] + r); ax.set_zlim(mid[2] - r, mid[2] + r)
         ax.set_box_aspect((1, 1, 1)); ax.view_init(elev, azim); ax.set_axis_off(); ax.set_title(title)
     fig.suptitle(out.rsplit("/", 1)[-1] + f"   tilt={tilt}  pan={pan}", y=.93)

@@ -7,6 +7,10 @@ user-supplied MG996R STL. Units: mm. World: Z up, base corner at origin.
 from build123d import *
 
 import clip_holder
+import enclosure
+import speaker as spk
+import esp32
+import amp
 
 # ---- parameters -----------------------------------------------------------
 RISER = 104.0       # top of the hollow leg above the sole bottom (SCAD original 12): lets the Type-C cable meet the charger window at the vertical pose
@@ -202,7 +206,7 @@ def phone():
 
 
 # ---- assembly -------------------------------------------------------------
-def assemble(tilt_deg=0.0, pan_deg=0.0, cable=False):
+def assemble(tilt_deg=0.0, pan_deg=0.0, cable=False, box=True, speaker=True):
     """Returns dict name -> positioned Shape. tilt_deg: 0 = platform horizontal (top face up), 90 = vertical (top face toward +X)."""
     zc = RISER + ROOF_GAP + 9.5          # carrier frame origin height (flipped)
     zp = zc - 2 + BOLT_DZ                # tilt axis height
@@ -246,6 +250,25 @@ def assemble(tilt_deg=0.0, pan_deg=0.0, cable=False):
     for k in parts:
         if k != "base":
             parts[k] = pan * Pos(0, dy, 0) * parts[k]
+    if box:   # enclosure: base plate hangs under the ceiling inside the box, the leg passes through the ceiling hole
+        stand_holes = [(x - BASE_L / 2, y - BASE_W / 2) for x, y in ((6, 6), (6, BASE_W - 6), (BASE_L - 6, BASE_W - 6), (BASE_L - 6, 6))]
+        to_box = Pos(cx, cy, SOLE + enclosure.TOP_T - enclosure.BOX_H)
+        parts["box_lower"] = to_box * enclosure.lower()
+        parts["box_upper"] = to_box * enclosure.upper(stand_holes)
+        if speaker:   # FD92-1 face down on standoffs over the floor grille, centred under the leg
+            parts["shelf"] = to_box * enclosure.shelf()
+            # ESP32 lies on the flat shelf top (pins through slots, antenna to the -Y wall); the amplifier hangs under the shelf
+            parts["esp32"] = to_box * Location(Plane(origin=(enclosure.ESP_X, enclosure.ESP_Y_USB, enclosure.SHELF_Z + enclosure.SHELF_T + esp32.HEADER_H),
+                                                     x_dir=(0, -1, 0), z_dir=(0, 0, 1))) * esp32.board()
+            parts["amp"] = to_box * Location(Plane(origin=(enclosure.TPA_X, enclosure.TPA_Y0, enclosure.TPA_FACE_Z),
+                                                   x_dir=(1, 0, 0), z_dir=(0, 0, -1))) * amp.tpa3118()
+            parts["dac"] = to_box * Location(Plane(origin=(enclosure.DAC_X, enclosure.DAC_Y0, enclosure.DAC_FACE_Z),
+                                                   x_dir=(0, 1, 0), z_dir=(0, 0, -1))) * amp.pcm5102()
+            # power module placeholder lies flat on the shelf top (the DAC is removed)
+            parts["psu"] = to_box * Pos(enclosure.PSU_X0, enclosure.PSU_Y0, enclosure.PSU_Z0) * amp.psu_block()
+            for i, (fx, fy) in enumerate(enclosure.FOOT_POS):
+                parts[f"foot{i}"] = to_box * Pos(fx, fy, 0) * enclosure.foot()
+            parts["speaker"] = to_box * Pos(enclosure.SPK_X, enclosure.SPK_Y, enclosure.FLOOR_T + enclosure.SPK_STANDOFF) * Rot(X=180) * spk.speaker()
     return parts
 
 
