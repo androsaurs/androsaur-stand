@@ -1,32 +1,29 @@
-# Названия текущей модели
+# Названия деталей
 
-| Название | Исходник в cad/ | Экземпляр в механизме |
+Имена — ключи словаря `assemble()` ([pantilt.py](../cadpy/pantilt.py)); те же имена в просмотрщике и в STEP.
+
+| Имя в модели | Что это | Файл |
 | --- | --- | --- |
-| Основание | parts/base/base.FCStd | Base |
-| Ножка | Цилиндрическая часть Base, на которую надет PanCarrier | Часть Base |
-| Крепление нижнего серво | parts/pan-carrier-brep/pan-carrier-brep.FCStd | PanCarrier |
-| Боковина со стороны качалки | parts/servo-side-brep/servo-side-brep.FCStd | ServoSide |
-| Боковина с выступом | parts/shaft-side-brep/shaft-side-brep.FCStd | ShaftSide |
-| Площадка наклона | parts/tilt-platform-brep/tilt-platform-brep.FCStd | TiltPlatform |
-| Вставка в паз / качалка наклона | parts/tilt-horn/tilt-horn.FCStd | ServoSideInsert |
-| Круглая качалка | parts/pan-horn/pan-horn.FCStd | BaseRoundHorn |
-| Нижний серво / серво №1 | components/mg996r-brep/mg996r-brep.FCStd | PanMG996R |
-| Верхний серво / серво №2 | Тот же источник MG996R (BRep) | TiltMG996R |
-| Держатель телефона | parts/phone-holder/phone-holder.FCStd | Holder в подсборке держателя |
-| Телефон — габарит | components/phone/phone.FCStd | Phone в подсборке держателя |
+| `base` | Основание: подошва 85 × 85 и ножка (цилиндр с полостью для проводов) | pantilt.py |
+| `carrier` | Лоток нижнего серво, надет на ножку | pantilt.py |
+| `servo_pan` | Нижнее серво MG996R (габарит) | pantilt.py |
+| `plate_horn` | Боковина со стороны качалки | pantilt.py |
+| `plate_shaft` | Боковина с выступом | pantilt.py |
+| `servo_tilt` | Верхнее серво MG996R (габарит) | pantilt.py |
+| `platform` | Площадка наклона с держателем | pantilt.py |
+| `body` | Спинка держателя (два выступа-направляющие) | clip_holder.py |
+| `grip` | Захват 82 мм, U-образная скоба | clip_holder.py |
+| `phone` | Телефон, габарит 170 × 80 × 8,8 | clip_holder.py |
+| `plug`, `cable` | Штекер Type-C и жёсткий макет кабеля | clip_holder.py |
+| `box_lower`, `box_upper` | Нижняя и верхняя половины корпуса | enclosure.py |
+| `shelf` | Полка внутри нижней половины | enclosure.py |
+| `foot0`…`foot3` | Ножки корпуса | enclosure.py |
+| `speaker` | Динамик FD92-1 (габарит) | speaker.py |
+| `esp32` | ESP32-S3 DevKitC-1 (габарит) | esp32.py |
+| `amp` | Усилитель TPA3118 (габарит) | amp.py |
+| `dac` | ЦАП PCM5102A (габарит) | amp.py |
+| `psu` | Блок питания, куб-заглушка 60 × 38 × 26 | amp.py |
 
-Блоки крепления серво в tilt-platform-brep вместе с рёбрами и отверстиями сдвинуты на 1,3151 мм
-вдоль оси Y платформы (параметр `SERVO_MOUNT_SHIFT_Y` в scripts/build-brep-parts.FCMacro).
-Исходная сетка MG996R — components/mg996r/mg996r.FCStd, она остаётся источником и эталоном для BRep-габарита.
-
-Основание — вся Base с подошвой и ножкой. Ножка — только цилиндр.
-Слова «вал» и «выступ ShaftSide» обозначают разные элементы.
-Текущий фасад к телефону направлен по +X, вверх +Z, ось наклона вдоль Y.
-Старые названия деталей прежнего макета в текущей модели не используются.
-
-Отдельно собран переданный владельцем держатель из двух деталей:
-`cad/assemblies/phone-holder-two-piece.FCStd` (ещё не установлен в stand).
-`Body` — спинка с нижним упором, источник `parts/phone-holder-body/`;
-`Grip82mm` / `82mm` — поперечный захват, источник `parts/phone-grip-82mm/`.
-Обе детали — BRep, построенные из исходных STL скриптом `scripts/build-phone-holder-brep.FCMacro`
-(с 2026-11-02; прежние сетки и правки `Body` — убранный крюк и полка, отверстия — заменены, они в Git, коммит 709eb6d).
+«Ножка» (подставки) — цилиндр `base`, на который надет `carrier`. Не путать с «ножками корпуса» (`foot0`…`foot3`) и
+«ножками полки» (три стойки полки). Старые названия во FreeCAD (`PanCarrier`, `ServoSide`, `ShaftSide`, `TiltPlatform` и др.) —
+в [docs/legacy-freecad/part-names.md](legacy-freecad/part-names.md).

@@ -57,7 +57,6 @@ ESP_Y_USB = -56.5 + _esp.TOTAL_L          # Y of the USB end (high Y); the anten
 TPA_X, TPA_Y0 = -1.5, 35.5      # module local x=0 end and the world Y of its centre line; rotated: 46.5 along X, 35 along Y
 TPA_STANDOFF, TPA_POST_D, TPA_PILOT_D, TPA_PILOT_DEPTH = 3.0, 6.0, 2.6, 5.0
 TPA_FACE_Z = SHELF_Z - TPA_STANDOFF       # module bare (solder) face
-PSU_Z0 = SHELF_Z + SHELF_T
 
 # DAC (PCM5102A) is hot-glued flat to the UNDERSIDE of the shelf in the rear +Y corner: long side along Y, components down
 DAC_X, DAC_Y0 = -36.0, 14.0     # centre X, module local x=0 end
@@ -75,10 +74,10 @@ ESP_SLOT_W = 1.8                 # header pins pass through; the 2.54 wide heade
 
 # ---- DC inlet (barrel jack 5.5 x 2.1, panel mount) and vent slots in the rear (-X) walls ----
 JACK_HOLE_D = 11.0              # typical panel-mount DC jack body (threaded barrel)
-JACK_Y, JACK_Z = -20.0, 13.0    # on the lower half's rear wall; Z from the floor underside
+JACK_Y, JACK_Z = 0.0, 13.0      # centred on the rear wall; vents are symmetric around it
 VENT_W, VENT_PITCH = 3.0, 7.0
 VENT_Y_MAX = 44.0               # slots span Y -42..42 (clear of the corner posts)
-LOWER_VENT_Z = (10.0, 30.0)     # below the lid tongue ring (z 31..35)
+LOWER_VENT_Z = (7.0, 25.0)       # entirely below the shelf (its underside is at z 27.5), above the floor (top at z 4)
 UPPER_VENT_Z = (40.0, 56.0)     # above the tongue ring, below the stand plate
 JACK_CLEAR_Y = 8.0              # no slots within +-8 of the jack axis
 
