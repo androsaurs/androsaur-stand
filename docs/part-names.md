@@ -28,3 +28,5 @@
 `cad/assemblies/phone-holder-two-piece.FCStd` (ещё не установлен в stand).
 `Body` — спинка с нижним упором, источник `parts/phone-holder-body/`;
 `Grip82mm` / `82mm` — поперечный захват, источник `parts/phone-grip-82mm/`.
+Обе детали — BRep, построенные из исходных STL скриптом `scripts/build-phone-holder-brep.FCMacro`
+(с 2026-11-02; прежние сетки и правки `Body` — убранный крюк и полка, отверстия — заменены, они в Git, коммит 709eb6d).
