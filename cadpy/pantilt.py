@@ -91,6 +91,7 @@ def base():
         p -= cz(1, 9, cx + dx, cy + dy, RISER - 9)
     for x, y in ((6, 6), (6, BASE_W - 6), (BASE_L - 6, BASE_W - 6), (BASE_L - 6, 6)):
         p -= cz(2, SOLE + 2, x, y, -1)
+        p -= cz(enclosure.CBORE_D / 2, enclosure.CBORE_DEPTH + 1, x, y, -1)   # head recess on the underside: M3x6 reaches the lid
     visible = CAVITY_TOP - SOLE
     for _, w, h, frac in WINDOWS:
         win = Box(25, w, h)

@@ -22,6 +22,8 @@ FIT = 0.3               # clearance between the tongue and the lower walls
 POST_D = 9.0
 PILOT_D, PILOT_DEPTH = 2.6, 10.0      # M3 self-tapping pilot in the upper posts
 HOLE_D, CBORE_D, CBORE_DEPTH = 3.4, 6.4, 2.5   # bottom screw holes (clearance + head recess)
+JOIN_SCREW_L, JOIN_ENGAGE = 12.0, 8.0                      # half-joining screws are M3x12; the tip goes 8 mm into the upper post pilot
+POST_CBORE_DEPTH = SEAM_Z + JOIN_ENGAGE - JOIN_SCREW_L     # tunnel up the lower post: the head seats at z = 31, so a short screw reaches
 LIP_H, LIP_T = 4.0, 2.0               # tongue ring
 LEDGE_H = 2.0                         # inward ledge at the seam that the tongue ring hangs from
 LEG_D = 36.4
@@ -123,7 +125,7 @@ def lower():
     for x, y in POSTS:
         t += _cyl(POST_D / 2, SEAM_Z - FLOOR_T, x, y, FLOOR_T)
         t -= _cyl(HOLE_D / 2, SEAM_Z + 2, x, y, -1)
-        t -= _cyl(CBORE_D / 2, CBORE_DEPTH + 1, x, y, -1)
+        t -= _cyl(CBORE_D / 2, POST_CBORE_DEPTH + 1, x, y, -1)
     for hx, y in _spk.hole_xy():                     # standoffs for the speaker bolts
         x, y = hx + SPK_X, y + SPK_Y
         t += _cyl(SPK_POST_D / 2, SPK_STANDOFF + 1, x, y, FLOOR_T - 1)
@@ -137,6 +139,7 @@ def lower():
         k += 1
     for x, y in FOOT_POS:
         t -= _cyl(FOOT_HOLE_D / 2, FLOOR_T + 2, x, y, -1)
+        t -= _cyl(CBORE_D / 2, CBORE_DEPTH + 1, x, y, FLOOR_T - CBORE_DEPTH)   # head recess on the inside: M3x6 reaches the foot
     t -= Pos(-BOX_L / 2 + WALL / 2, JACK_Y, JACK_Z) * Rot(Y=90) * Cylinder(JACK_HOLE_D / 2, WALL + 2)   # DC jack hole in the rear wall
     t -= _vents(*LOWER_VENT_Z, skip_jack=True)
     for x, y, _d in SHELF_LEGS:                      # screws up into the shelf legs
@@ -193,6 +196,9 @@ def upper(stand_holes=()):
     u += ring
     for x, y in POSTS:
         u += _cyl(POST_D / 2, h - TOP_T, x, y, SEAM_Z)
+        # fill the pocket between the post and the corner: with the ledge below it that pocket was a sealed void
+        cx_, cy_ = (abs(x) + 60.0) / 2 * (1 if x > 0 else -1), (abs(y) + 60.0) / 2 * (1 if y > 0 else -1)
+        u += Pos(cx_, cy_, SEAM_Z + (h - TOP_T) / 2) * Box(60.0 - abs(x), 60.0 - abs(y), h - TOP_T)
         u -= _cyl(PILOT_D / 2, PILOT_DEPTH, x, y, SEAM_Z - 1)
     u -= _vents(*UPPER_VENT_Z, skip_jack=False)
     u -= _cyl(OPENING_D / 2, TOP_T + 2, 0, 0, BOX_H - TOP_T - 1)

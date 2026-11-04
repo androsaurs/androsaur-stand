@@ -57,6 +57,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 - [Конструкция](docs/design.md): механизм, держатель, ножка, параметры
 - [Корпус и компоновка](docs/enclosure.md): размеры, координаты, порядок сборки, печать
+- [Крепёж](docs/fasteners.md): что и сколько купить
 - [Электроника](docs/electronics.md): состав, питание, усилитель, серво, что искать в магазине
 - [Проверки](docs/verification.md): зазоры, пересечения, устойчивость, печатаемость
 - [Открытые вопросы](docs/open-issues.md)
