@@ -11,6 +11,7 @@ import enclosure
 import speaker as spk
 import esp32
 import amp
+import hardware
 
 # ---- parameters -----------------------------------------------------------
 RISER = 104.0       # top of the hollow leg above the sole bottom (SCAD original 12): lets the Type-C cable meet the charger window at the vertical pose
@@ -36,7 +37,8 @@ PLATFORM_Y1 = 27.5                          # pillow-block side edge, position u
 # and the platform frame origin sits at 25.5 + TILT_GAP_A along that axis
 PLATFORM_Y0 = 2 * (21.0 - (25.5 + TILT_GAP_A)) - PLATFORM_Y1
 HOLDER_HOLES = ((-18.0, -15.0), (-18.0, 5.0), (15.0, -15.0), (15.0, 5.0))   # (x_p, y_p) in the platform frame: between the servo blocks (|x_p| 22..19 gap), nothing built above the plate there
-MOUNT_PAD = 2.0      # extra platform thickness on the holder side, over the whole plate (3 -> 5 mm), keeps it printable without supports
+MOUNT_PAD = 3.0      # extra platform thickness on the holder side, over the whole plate (3 -> 6 mm): printable without supports and deep enough for the M3x8 holder screws
+HOLDER_PILOT_DEPTH = 4.5   # in the platform; the plate is 6 mm thick, 1.5 mm skin stays on the back
 HOLDER_SLIDE = -8.0  # clip holder shifted along the phone height (negative = down) so the guides and clip hang off the platform edge
 MIN3 = (Align.MIN, Align.MIN, Align.MIN)
 
@@ -111,7 +113,7 @@ def carrier():
     p -= bx(-27.5, 27.5, -1.2, 1.2, 0, 4)
     for sx in (-24.75, 24.75):
         for sy in (-5, 5):
-            p -= cz(1, 12, sx, sy, -6)
+            p -= cz(1.3, 12, sx, sy, -6)      # M3 pilot (was D2 for the servo kit screws)
     for x in (-18, 18):
         p -= cyl_y(1.25, 52, x, 0, 2)
     return p
@@ -171,10 +173,10 @@ def platform():
     p += Pos(6.5, 27.5, 1) * Rot(Z=-180) * wsupport(15, 6)
     for x in (23, -26):
         for z in (16.5, 6.5):
-            p -= cyl_y(1.2, 55, x, -7.5, z)
+            p -= cyl_y(1.3, 55, x, -7.5, z)   # M3 pilot (was D2.4)
     p -= cyl_y(3.2, 56, -11.8, 0, 11)
-    for x, y in HOLDER_HOLES:
-        p -= cz(clip_holder.MOUNT_HOLE_D / 2, 6 + pad, x, y, -3 - pad)
+    for x, y in HOLDER_HOLES:   # blind M3 pilots from the holder side: the holder screws go in from the phone side, no nuts
+        p -= cz(1.3, HOLDER_PILOT_DEPTH + 0.5, x, y, -1.5 - pad - 0.5)
     return p
 
 
@@ -207,8 +209,9 @@ def phone():
 
 
 # ---- assembly -------------------------------------------------------------
-def assemble(tilt_deg=0.0, pan_deg=0.0, cable=False, box=True, speaker=True):
-    """Returns dict name -> positioned Shape. tilt_deg: 0 = platform horizontal (top face up), 90 = vertical (top face toward +X)."""
+def assemble(tilt_deg=0.0, pan_deg=0.0, cable=False, box=True, speaker=True, hw=False):
+    """Returns dict name -> positioned Shape. tilt_deg: 0 = platform horizontal (top face up), 90 = vertical (top face toward +X).
+    hw=True adds the fasteners (names start with hw_); the check scripts leave them out because self-tapping screws overlap their pilots."""
     zc = RISER + ROOF_GAP + 9.5          # carrier frame origin height (flipped)
     zp = zc - 2 + BOLT_DZ                # tilt axis height
     xp = 32.5 + PIVOT_DX
@@ -245,12 +248,32 @@ def assemble(tilt_deg=0.0, pan_deg=0.0, cable=False, box=True, speaker=True):
         parts["phone"] = tilt * to_platform * phone()
     parts["servo_tilt"] = tilt * to_platform * Pos(-1.5, 14.5, 11.5) * Rot(X=90) * Rot(Z=180) * servo()
 
+    hold = {}
+    if hw:   # mechanism: servo ears and side plates; positions found by probing the pilots, sizes follow the pilot diameters
+        sfr = to_carrier * Pos(0, 0, -29.5)               # pan servo frame: ears at z 26.5..29.5, pilots in the carrier above them
+        tfr = tilt * to_platform * Pos(-1.5, 14.5, 11.5) * Rot(X=90) * Rot(Z=180)   # tilt servo frame
+        phf = Pos(32.5, -1.5, zp - 22.5) * Rot(X=90)       # horn-side plate frame
+        psf = Pos(32.5, 43.5, zp - 20.5) * Rot(Z=180) * Rot(X=90)   # shaft-side plate frame
+        for i, (sx, sy) in enumerate(((-24.75, -5), (-24.75, 5), (24.75, -5), (24.75, 5))):
+            hold[f"hw_panservo{i}"] = sfr * hardware.at(sx, sy, 26.5, 1) * hardware.screw("M3", 8)       # from below up through the ear (tip 5 mm into the plate, does not stick out)
+            if (sx, sy) != (24.75, -5):   # the ear hole at this corner has no platform block behind it (the low block ends below it)
+                hold[f"hw_tiltservo{i}"] = tfr * hardware.at(sx, sy, 29.5, -1) * hardware.screw("M3", 8)   # from the ear top into the platform block (5 mm into the block)
+        for i, x in enumerate((-18, 18)):
+            hold[f"hw_plate_horn{i}"] = phf * hardware.at(x, -21, 1.5, -1) * hardware.screw("M3", 8)
+            hold[f"hw_plate_shaft{i}"] = psf * hardware.at(x, -23, 1.5, -1) * hardware.screw("M3", 8)
+    if hw and HOLDER == "clip":   # M3x8 from the phone side through the holder spine into the platform pilots (no nuts)
+        for i, (x, y) in enumerate(HOLDER_HOLES):
+            loc = tilt * to_platform * hardware.at(x, y, FACE_Z - MOUNT_PAD - 4.0)   # head seat: 4 mm of the spine remain under the 3 mm recess
+            hold[f"hw_holder_screw{i}"] = loc * hardware.screw("M3", 8)    # through the spine into the platform pilot, 4 mm engaged
+
     dy = BASE_W / 2 - 21                 # mechanism was designed around a 42 mm wide sole
     cx, cy = BASE_L / 2, BASE_W / 2
     pan = Pos(cx, cy, 0) * Rot(Z=pan_deg) * Pos(-cx, -cy, 0)
     for k in parts:
         if k != "base":
             parts[k] = pan * Pos(0, dy, 0) * parts[k]
+    for k, v in hold.items():
+        parts[k] = pan * Pos(0, dy, 0) * v
     if box:   # enclosure: base plate hangs under the ceiling inside the box, the leg passes through the ceiling hole
         stand_holes = [(x - BASE_L / 2, y - BASE_W / 2) for x, y in ((6, 6), (6, BASE_W - 6), (BASE_L - 6, BASE_W - 6), (BASE_L - 6, 6))]
         to_box = Pos(cx, cy, SOLE + enclosure.TOP_T - enclosure.BOX_H)
@@ -270,6 +293,24 @@ def assemble(tilt_deg=0.0, pan_deg=0.0, cable=False, box=True, speaker=True):
             for i, (fx, fy) in enumerate(enclosure.FOOT_POS):
                 parts[f"foot{i}"] = to_box * Pos(fx, fy, 0) * enclosure.foot()
             parts["speaker"] = to_box * Pos(enclosure.SPK_X, enclosure.SPK_Y, enclosure.FLOOR_T + enclosure.SPK_STANDOFF) * Rot(X=180) * spk.speaker()
+    if hw:
+        bolt = hardware.screw
+        for i, (x, y) in enumerate(((6, 6), (6, BASE_W - 6), (BASE_L - 6, BASE_W - 6), (BASE_L - 6, 6))):   # base plate to the lid
+            parts[f"hw_stand{i}"] = hardware.at(x, y, enclosure.CBORE_DEPTH) * bolt("M3", 6)
+        if box:
+            tb = Pos(cx, cy, SOLE + enclosure.TOP_T - enclosure.BOX_H)
+            for i, (x, y) in enumerate(enclosure.POSTS):    # halves together, from below
+                parts[f"hw_join{i}"] = tb * hardware.at(x, y, enclosure.POST_CBORE_DEPTH) * bolt("M3", 12)
+            if speaker:
+                for i, (x, y) in enumerate(enclosure.FOOT_POS):
+                    parts[f"hw_foot{i}"] = tb * hardware.at(x, y, enclosure.FLOOR_T - enclosure.CBORE_DEPTH, -1) * bolt("M3", 6)
+                for i, (x, y, _d) in enumerate(enclosure.SHELF_LEGS):
+                    parts[f"hw_shelfleg{i}"] = tb * hardware.at(x, y, enclosure.CBORE_DEPTH) * bolt("M3", 6)
+                for i, (x, y) in enumerate(enclosure.tpa_holes()):
+                    parts[f"hw_amp{i}"] = tb * hardware.at(x, y, enclosure.TPA_FACE_Z - amp.PCB_T) * bolt("M3", 6)
+                z_flange = enclosure.FLOOR_T + enclosure.SPK_STANDOFF + spk.FLANGE_T
+                for i, (hx, hy) in enumerate(spk.hole_xy()):
+                    parts[f"hw_speaker{i}"] = tb * hardware.at(enclosure.SPK_X + hx, enclosure.SPK_Y + hy, z_flange, -1) * bolt("M4", 8)
     return parts
 
 

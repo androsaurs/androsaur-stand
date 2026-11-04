@@ -34,6 +34,9 @@ import speaker as _spk
 SPK_X, SPK_Y = 12.5, -12.5       # speaker tucked into the front/-Y corner of the box (flange 1 mm from both walls)
 SPK_STANDOFF = 5.0               # speaker flange stands this high above the floor (sound path to the grille)
 SPK_POST_D, SPK_PILOT_D, SPK_PILOT_DEPTH = 9.0, 3.4, 6.0   # posts under the flange holes, M4 self-tapping pilots
+SPK_RING_T = 3.0                                            # ring wall thickness
+SPK_RING_R_IN = _spk.HOLE_PCD / 2 - SPK_RING_T / 2          # centre line of the ring on the bolt circle of the speaker
+SPK_RING_R_OUT = _spk.HOLE_PCD / 2 + SPK_RING_T / 2         # ring between the floor and the flange: the sound can only leave through the floor grille
 GRILLE_R, SLOT_W, SLOT_PITCH = 34.0, 3.0, 6.0               # floor grille under the speaker
 FOOT_D, FOOT_H = 14.0, 8.0       # separate feet, screwed to the floor from inside with M3
 FOOT_POS = tuple((sx * 47.0, sy * 47.0) for sx in (-1, 1) for sy in (-1, 1))   # pad edges at +-54: 8.5 mm in from the box edge, clear of the corner-post screw recesses
@@ -126,6 +129,8 @@ def lower():
         t += _cyl(POST_D / 2, SEAM_Z - FLOOR_T, x, y, FLOOR_T)
         t -= _cyl(HOLE_D / 2, SEAM_Z + 2, x, y, -1)
         t -= _cyl(CBORE_D / 2, POST_CBORE_DEPTH + 1, x, y, -1)
+    ring = _cyl(SPK_RING_R_OUT, SPK_STANDOFF + 1, SPK_X, SPK_Y, FLOOR_T - 1) - _cyl(SPK_RING_R_IN, SPK_STANDOFF + 3, SPK_X, SPK_Y, FLOOR_T - 2)
+    t += ring                                        # added before the posts so their pilots stay open (tape or foam gasket on top)
     for hx, y in _spk.hole_xy():                     # standoffs for the speaker bolts
         x, y = hx + SPK_X, y + SPK_Y
         t += _cyl(SPK_POST_D / 2, SPK_STANDOFF + 1, x, y, FLOOR_T - 1)

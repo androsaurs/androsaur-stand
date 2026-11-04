@@ -25,3 +25,10 @@ STYLE = {
     "foot0": ("#333333", 1.0), "foot1": ("#333333", 1.0), "foot2": ("#333333", 1.0), "foot3": ("#333333", 1.0),
 }
 
+
+
+HARDWARE = ("#e02020", 1.0)         # red: every fastener (name starts with hw_)
+
+
+def style(name):
+    return HARDWARE if name.startswith("hw_") else STYLE.get(name, ("#999999", 1.0))
