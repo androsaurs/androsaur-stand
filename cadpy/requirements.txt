@@ -1,0 +1,6 @@
+build123d==0.13.0
+ocp_vscode==4.2.0
+ocp_viewer==1.2.0
+build123d-ocp-preview==0.2.1
+numpy
+matplotlib
