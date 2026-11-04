@@ -66,11 +66,14 @@ def prism_xy(pts, z0, z1):
     return Pos(0, 0, z0) * Solid.extrude(f, Vector(0, 0, z1 - z0))
 
 
+SERVO_T = 20.0       # servo body thickness: measured on the owner's servo (was 19 from the STL)
+
+
 # ---- servo MG996R (shaft +Z, body centred on XY, shaft at x=+10) ----------
 def servo():
-    s = bx(-20, 20, -9.5, 9.5, 0, 36)
-    s += bx(-18, 18, -9.5, 9.5, 36, 37.5)
-    s += bx(-27, 27, -9.5, 9.5, 26.5, 29.5)
+    s = bx(-20, 20, -SERVO_T / 2, SERVO_T / 2, 0, 36)       # body 40 x SERVO_T (owner measured 40 x 20)
+    s += bx(-18, 18, -SERVO_T / 2, SERVO_T / 2, 36, 37.5)
+    s += bx(-27, 27, -SERVO_T / 2, SERVO_T / 2, 26.5, 29.5)
     for sx in (-24.75, 24.75):
         for sy in (-5, 5):
             s -= cz(2.1, 4, sx, sy, 26)
@@ -289,7 +292,9 @@ def assemble(tilt_deg=0.0, pan_deg=0.0, cable=False, box=True, speaker=True, hw=
             parts["dac"] = to_box * Location(Plane(origin=(enclosure.DAC_X, enclosure.DAC_Y0, enclosure.DAC_FACE_Z),
                                                    x_dir=(0, 1, 0), z_dir=(0, 0, -1))) * amp.pcm5102()
             # power module placeholder lies flat on the shelf top (the DAC is removed)
-            parts["psu"] = to_box * Pos(enclosure.PSU_X0, enclosure.PSU_Y0, enclosure.PSU_Z0) * amp.psu_block()
+            parts["psu"] = to_box * Pos(enclosure.PSU_X0, enclosure.PSU_Y0, enclosure.PSU_Z0 + enclosure.PSU_SPACER_H) * amp.buck_hw674()
+            for i, (x, y) in enumerate(enclosure.psu_holes()):
+                parts[f"psu_spacer{i}"] = to_box * Pos(x, y, enclosure.PSU_Z0) * enclosure.psu_spacer()
             for i, (fx, fy) in enumerate(enclosure.FOOT_POS):
                 parts[f"foot{i}"] = to_box * Pos(fx, fy, 0) * enclosure.foot()
             parts["speaker"] = to_box * Pos(enclosure.SPK_X, enclosure.SPK_Y, enclosure.FLOOR_T + enclosure.SPK_STANDOFF) * Rot(X=180) * spk.speaker()
@@ -308,6 +313,8 @@ def assemble(tilt_deg=0.0, pan_deg=0.0, cable=False, box=True, speaker=True, hw=
                     parts[f"hw_shelfleg{i}"] = tb * hardware.at(x, y, enclosure.CBORE_DEPTH) * bolt("M3", 6)
                 for i, (x, y) in enumerate(enclosure.tpa_holes()):
                     parts[f"hw_amp{i}"] = tb * hardware.at(x, y, enclosure.TPA_FACE_Z - amp.PCB_T) * bolt("M3", 6)
+                for i, (x, y) in enumerate(enclosure.psu_holes()):   # module: M3x8 from the top through board and spacer into the shelf and its post
+                    parts[f"hw_psu{i}"] = tb * hardware.at(x, y, enclosure.PSU_Z0 + enclosure.PSU_SPACER_H + amp.PCB_T, -1) * bolt("M3", 8)
                 z_flange = enclosure.FLOOR_T + enclosure.SPK_STANDOFF + spk.FLANGE_T
                 for i, (hx, hy) in enumerate(spk.hole_xy()):
                     parts[f"hw_speaker{i}"] = tb * hardware.at(enclosure.SPK_X + hx, enclosure.SPK_Y + hy, z_flange, -1) * bolt("M4", 8)

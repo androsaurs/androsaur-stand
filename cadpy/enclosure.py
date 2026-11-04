@@ -59,7 +59,7 @@ import amp as _amp
 ESP_X = -36.0
 ESP_Y_USB = -56.5 + _esp.TOTAL_L          # Y of the USB end (high Y); the antenna end at -56.5 stays inside the lid tongue ring (inner face at 57.2)
 # amplifier hangs UNDER the shelf on posts (components down), rear-left zone
-TPA_X, TPA_Y0 = -1.5, 35.5      # module local x=0 end and the world Y of its centre line; rotated: 46.5 along X, 35 along Y
+TPA_X, TPA_Y0 = -14.25, 39.0      # module local x=0 end and the world Y of its centre line; rotated: 46.5 along X, 35 along Y
 TPA_STANDOFF, TPA_POST_D, TPA_PILOT_D, TPA_PILOT_DEPTH = 3.0, 6.0, 2.6, 5.0
 TPA_FACE_Z = SHELF_Z - TPA_STANDOFF       # module bare (solder) face
 
@@ -67,9 +67,16 @@ TPA_FACE_Z = SHELF_Z - TPA_STANDOFF       # module bare (solder) face
 DAC_X, DAC_Y0 = -36.0, 14.0     # centre X, module local x=0 end
 DAC_FACE_Z = SHELF_Z            # bare face of the board touches the shelf underside
 
-# power module placeholder (60 x 38 x 26) lies flat on the shelf top, beyond the ESP32 along +X
+# HW-674 buck module (60 x 38 x 26) on the shelf top, beyond the ESP32 along +X, on 3 mm printed spacers
+PSU_SPACER_H, PSU_SPACER_D = 3.0, 7.0                 # separate printed bushings: the shelf top stays flat
+PSU_POST_D, PSU_POST_H, PSU_PILOT_D = 5.5, 2.5, 2.6    # posts hang under the shelf at the module holes (screws from the top, M3x8)
 PSU_X0, PSU_Y0 = -21.0, 18.0    # min corner; X -21..39 starts 1 mm beyond the far (+X) face of the ESP32 (x = -22); Y 18..56 stops 0.5 mm short of the shelf edge (the lid tongue ring is at 57.2)
 PSU_Z0 = SHELF_Z + SHELF_T
+
+
+def psu_holes():
+    """(x, y) of the module's four mounting holes in the enclosure frame."""
+    return [(PSU_X0 + hx, PSU_Y0 + hy) for hx, hy in _amp.PSU_HOLES]
 
 
 def tpa_holes():
@@ -169,10 +176,19 @@ def shelf():
     for vx in SHELF_VENT_X:                          # airflow slots
         for vy in SHELF_VENT_Y:
             s -= Pos(vx, vy, SHELF_Z + SHELF_T / 2) * Box(SHELF_VENT_W, SHELF_VENT_L, SHELF_T + 2)
+    for x, y in psu_holes():                         # power module: posts under the shelf, pilots open at the flat top
+        s += _cyl(PSU_POST_D / 2, PSU_POST_H + 0.5, x, y, SHELF_Z - PSU_POST_H)
+        s -= _cyl(PSU_PILOT_D / 2, SHELF_T + PSU_POST_H - 0.5 + 1, x, y, SHELF_Z - PSU_POST_H + 0.5)
     for x, y, d in SHELF_LEGS:
         s += _cyl(d / 2, SHELF_Z - FLOOR_T + 0.5, x, y, FLOOR_T)
         s -= _cyl(SHELF_PILOT_D / 2, SHELF_PILOT_DEPTH + 1, x, y, FLOOR_T - 1)
     return s
+
+
+
+def psu_spacer():
+    """Printed bushing under the power module, origin at its bottom, 3 mm tall."""
+    return _cyl(PSU_SPACER_D / 2, PSU_SPACER_H, 0, 0, 0) - _cyl(1.7, PSU_SPACER_H + 2, 0, 0, -1)
 
 
 def foot():

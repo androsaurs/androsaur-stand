@@ -8,7 +8,7 @@
 docs/model-guide.md и docs/open-issues.md. Требования — docs/requirements.md.
 
 Единственный источник геометрии — код в `cadpy/` (`pantilt.py`, `clip_holder.py`, `enclosure.py`, `speaker.py`, `esp32.py`,
-`amp.py`); STEP в `exports/` производный. Просмотр: `cadpy/viewer.sh`; проверка пересечений: `cadpy/check.py -3 45 90 100`;
+`amp.py`); STEP в `exports/` производный. Просмотр: `cadpy/viewer.sh`; проверка пересечений: `cadpy/check.py -2 45 90 100`;
 экспорт для FreeCAD: `cadpy/export.py`; картинки для документации: `cadpy/shots.py`.
 
 Владелец требует строго выполнять указанные действия. Не менять конструкцию, геометрию, оси или размещения соседних деталей

@@ -8,7 +8,7 @@ from ocp_vscode import show
 from palette import style
 from pantilt import assemble
 
-TILT = 90   # 0 = platform horizontal, 90 = vertical facing +X; free range about -3..100 with the holder and phone
+TILT = 90   # 0 = platform horizontal, 90 = vertical facing +X; free range about -2..100 with the holder and phone
 PAN = 0
 PART_ALPHA = 0.35   # every part is see-through, the fasteners stay opaque
 
