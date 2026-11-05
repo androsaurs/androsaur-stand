@@ -17,7 +17,7 @@ import numpy as np
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from palette import STYLE
+from palette import style
 from pantilt import assemble
 
 OUT = Path(__file__).resolve().parent.parent / "docs" / "img"
@@ -35,7 +35,7 @@ def triangles(parts, alpha):
         v = np.array([(p.X, p.Y, p.Z) for p in v])
         f = np.array(f)
         T.append(v[f])
-        col = matplotlib.colors.to_rgb(STYLE.get(name, ("#999999", 1.0))[0])
+        col = matplotlib.colors.to_rgb(style(name)[0])
         C.append(np.tile(col, (len(f), 1))); A.append(np.full(len(f), alpha.get(name, 1.0))); I.append(np.full(len(f), pid))
     return np.concatenate(T), np.concatenate(C), np.concatenate(A), np.concatenate(I)
 
