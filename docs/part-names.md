@@ -12,8 +12,8 @@
 | `servo_tilt` | Верхнее серво MG996R (габарит) | pantilt.py |
 | `platform` | Площадка наклона с держателем | pantilt.py |
 | `body` | Спинка держателя (два выступа-направляющие) | clip_holder.py |
-| `grip` | Захват 82 мм, U-образная скоба | clip_holder.py |
-| `phone` | Телефон, габарит 170 × 80 × 8,8 | clip_holder.py |
+| `grip` | Захват под телефон 76,3 мм (в названии владельца раньше «82 мм»), U-образная скоба | clip_holder.py |
+| `phone` | Телефон Redmi 12 без чехла, габарит 168,6 × 76,3 × 9,0 | clip_holder.py |
 | `plug`, `cable` | Штекер Type-C и жёсткий макет кабеля | clip_holder.py |
 | `box_lower`, `box_upper` | Нижняя и верхняя половины корпуса | enclosure.py |
 | `shelf` | Полка внутри нижней половины | enclosure.py |

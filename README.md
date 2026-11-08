@@ -16,7 +16,7 @@
 | Узел | Состояние |
 | --- | --- |
 | Поворотно-наклонный механизм | Собран и проверен на пересечения: наклон −2…100°, поворот 45–180° |
-| Держатель телефона (спинка + захват 82 мм) | Параметрический, разъём Type-C и кабель смоделированы |
+| Держатель телефона (спинка + захват под Redmi 12: 76,3 × 9,0 мм) | Параметрический, разъём Type-C и кабель смоделированы; щель с зазорами 0,5 мм по бокам и 0,8 мм по толщине, пробная печать не сделана |
 | Корпус 125 × 125 × 70, две половины | Построен, подставка висит под крышкой, ножка выходит через отверстие в крышке |
 | Динамик FD92-1, полка, ESP32, усилитель, ЦАП | Размещены; размеры плат оценочные, кроме габаритов |
 | Блок питания | Пока куб-заглушка 60 × 38 × 26 мм, модуль не выбран |
@@ -33,6 +33,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ./viewer.sh                       # просмотрщик http://127.0.0.1:3939/viewer, перерисовка при сохранении view.py
 .venv/bin/python check.py -2 45 90 100   # проверка пересечений при наклоне
 .venv/bin/python export.py        # STEP для FreeCAD и друзей -> exports/androsaur-stand-assembly.step
+.venv/bin/python export_stl.py    # STL деталей механизма и держателя для печати -> exports/stl/
 .venv/bin/python shots.py         # картинки для документации -> docs/img/
 ```
 
@@ -49,7 +50,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 | [`cadpy/check.py`](cadpy/check.py), [`pancheck.py`](cadpy/pancheck.py) | Проверка пересечений при наклоне и повороте |
 | [`cadpy/view.py`](cadpy/view.py), [`palette.py`](cadpy/palette.py) | Живой просмотр и цвета деталей |
 | [`cadpy/export.py`](cadpy/export.py), [`shots.py`](cadpy/shots.py) | Экспорт в STEP, картинки |
-| [`exports/`](exports/) | STEP сборки и проект FreeCAD с той же геометрией (для просмотра и обмена) |
+| [`exports/`](exports/) | STEP сборки и проект FreeCAD с той же геометрией (для просмотра и обмена); [`exports/stl/`](exports/stl/): STL деталей для печати |
 | [`references/`](references/README.md) | Источники сторонних материалов (micromet, MG996R, держатель) |
 | [`docs/`](docs/) | Документация |
 
@@ -58,6 +59,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 - [Конструкция](docs/design.md): механизм, держатель, ножка, параметры
 - [Корпус и компоновка](docs/enclosure.md): размеры, координаты, порядок сборки, печать
 - [Крепёж](docs/fasteners.md): что и сколько купить
+- [Печать](docs/printing.md): STL по деталям, как класть, что печатать первым, настройки
 - [Электроника](docs/electronics.md): состав, питание, усилитель, серво, что искать в магазине
 - [Проверки](docs/verification.md): зазоры, пересечения, устойчивость, печатаемость
 - [Открытые вопросы](docs/open-issues.md)

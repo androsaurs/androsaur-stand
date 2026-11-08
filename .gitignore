@@ -5,3 +5,5 @@
 *.FCStd.*
 *.lck
 __pycache__/
+exports/gcode/
+exports/stl/*.gcode

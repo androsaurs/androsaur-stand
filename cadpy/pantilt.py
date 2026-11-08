@@ -39,7 +39,8 @@ PLATFORM_Y0 = 2 * (21.0 - (25.5 + TILT_GAP_A)) - PLATFORM_Y1
 HOLDER_HOLES = ((-18.0, -15.0), (-18.0, 5.0), (15.0, -15.0), (15.0, 5.0))   # (x_p, y_p) in the platform frame: between the servo blocks (|x_p| 22..19 gap), nothing built above the plate there
 MOUNT_PAD = 3.0      # extra platform thickness on the holder side, over the whole plate (3 -> 6 mm): printable without supports and deep enough for the M3x8 holder screws
 HOLDER_PILOT_DEPTH = 4.5   # in the platform; the plate is 6 mm thick, 1.5 mm skin stays on the back
-HOLDER_SLIDE = -8.0  # clip holder shifted along the phone height (negative = down) so the guides and clip hang off the platform edge
+HOLDER_SLIDE = -8.7  # clip holder shifted along the phone height (negative = down) so the guides and clip hang off the platform edge;
+                     # was -8.0 for the old 170 mm gauge: 0.7 more keeps the spine in place for the 168.6 mm phone
 MIN3 = (Align.MIN, Align.MIN, Align.MIN)
 
 
@@ -184,7 +185,7 @@ def platform():
 
 
 # ---- phone holder (platform frame; phone on the -Z side of the platform) ---
-PHONE_H, PHONE_W, PHONE_T = 170.0, 80.0, 10.0
+PHONE_H, PHONE_W, PHONE_T = clip_holder.PHONE_H, clip_holder.PHONE_W, clip_holder.PHONE_T   # one gauge for both holders
 FIT, WALL, BACK = 0.3, 2.0, 3.0
 AXIS_X = -11.8      # tilt axis passes through the middle of the phone height
 FACE_Z = -1.5       # platform face the holder back plate rests on
@@ -209,6 +210,20 @@ def phone():
     zb = FACE_Z - BACK
     x0 = AXIS_X - PHONE_H / 2   # lower edge rests on the bottom stop (stop 2 mm + 0.3 fit offsets cancel)
     return bx(x0, x0 + PHONE_H, -PHONE_W / 2, PHONE_W / 2, zb - PHONE_T, zb)
+
+
+# ---- print parts ----------------------------------------------------------
+def print_parts():
+    """The printed parts of the pan-tilt mechanism and the phone holder, each in its own frame with the flat face on the bed
+    (the frames the parts are built in are already the print orientation, see docs/printing.md). The spine is cut to the same
+    length and drilled at the same holes as in assemble()."""
+    origin_x = AXIS_X - (clip_holder.PHONE_BOTTOM_Z + clip_holder.PHONE_H / 2) + HOLDER_SLIDE
+    cy = (PLATFORM_Y0 + PLATFORM_Y1) / 2
+    holes = [(x - origin_x, y - cy + clip_holder.BODY_W / 2) for x, y in HOLDER_HOLES]
+    return {
+        "base": base(), "carrier": carrier(), "plate_horn": plate_horn_side(), "plate_shaft": plate_shaft_side(),
+        "platform": platform(), "body": clip_holder.body_local(PLATFORM_X1 - origin_x, holes), "grip": clip_holder.grip(),
+    }
 
 
 # ---- assembly -------------------------------------------------------------
