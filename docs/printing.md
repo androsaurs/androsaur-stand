@@ -30,19 +30,20 @@ cd cadpy && .venv/bin/python export_stl.py
 Принтер Flying Bear Ghost6, только PLA, сопло 0,4 мм, слой 0,20 мм. G-code нарезан консольным OrcaSlicer инструментом
 `slice.py` из проекта Ghost6 (`/mnt/fastdata/hram/projects/Ghost6`, описание в его `docs/slicing.md`) и лежит в [`exports/gcode/`](../exports/gcode/) (в git не идёт).
 
-**Единый профиль печати (решение владельца 2026-11-08), одинаков для всех деталей:** 3 стенки, заполнение 15% сеткой (crosshatch),
+**Единый профиль печати (решение владельца 2026-11-08), одинаков для всех деталей:** 3 стенки, заполнение 15% узором **grid** (сетка),
 3 нижних и 3 верхних слоя, сопло **210 °C**, стол 60 °C, **без поддержек**. Профиль снят с G-code первой детали (`plate_shaft`); в нём сопло
-220 °C, поэтому при нарезке добавляются `--set nozzle_temperature=210 --set nozzle_temperature_initial_layer=210`. Других `--set` (стенки,
+220 °C и узор `crosshatch`, поэтому при нарезке добавляются `--set nozzle_temperature=210 --set nozzle_temperature_initial_layer=210 --set sparse_infill_pattern=grid`.
+Исключения: `plate_shaft` (напечатана раньше) и `plate_horn` (печаталась с `crosshatch`, оставлена по решению владельца) имеют узор crosshatch. Других `--set` (стенки,
 заполнение) без слова владельца не использовать.
 
 | G-code | Слоёв | Время (оценка) | PLA | Мосты и свесы |
 | --- | --- | --- | --- | --- |
-| `grip_PLA_23m49s.gcode` | 50 | 24 мин | 5,8 г | нет |
-| `body_PLA_1h45m44s.gcode` | 150 | 1 ч 46 мин | 21,4 г | шесть окон в плите: потолок по 5 мм; вырез под штекер |
+| `grip_PLA_23m27s.gcode` | 50 | 23 мин | 5,6 г | нет |
+| `body_PLA_1h44m34s.gcode` | 150 | 1 ч 45 мин | 21,4 г | шесть окон в плите: потолок по 5 мм; вырез под штекер |
 | `plate_horn_PLA_22m16s.gcode` | 30 | 22 мин | 5,8 г | нет |
-| `platform_PLA_1h2m35s.gcode` | 125 | 1 ч 03 мин | 15,4 г | мелкие свесы (140 мм²) |
-| `carrier_PLA_56m55s.gcode` | 100 | 57 мин | 14,3 г | мембрана кармана серво **20 × 31 мм** |
-| `base_PLA_2h39m24s.gcode` | 520 | 2 ч 39 мин | 47,3 г | потолок полости Ø30 (**мост 31 мм**) |
+| `platform_PLA_58m58s.gcode` | 125 | 59 мин | 15,3 г | мелкие свесы (140 мм²) |
+| `carrier_PLA_53m46s.gcode` | 100 | 54 мин | 13,9 г | мембрана кармана серво **20 × 31 мм** |
+| `base_PLA_2h54m14s.gcode` | 520 | 2 ч 54 мин | 48,0 г | потолок полости Ø30 (**мост 31 мм**) |
 | `plate_shaft_PLA_19m15s.gcode` | 40 | 19 мин | 5,1 г | нет (уже напечатана; сопло было 220 °C) |
 
 Итого около 115 г PLA и 7,5 часов чистого времени. Оценки времени из слайсера, не измеренное время печати. Все файлы проверены: в области
@@ -53,7 +54,7 @@ cd cadpy && .venv/bin/python export_stl.py
 ```bash
 S=$PWD/exports/stl; O=$PWD/exports/gcode; T=/mnt/fastdata/hram/projects/Ghost6/slice.py
 python3 $T slice $S/grip.stl $S/body.stl $S/plate_horn.stl $S/platform.stl $S/carrier.stl $S/base.stl \
-  --set nozzle_temperature=210 --set nozzle_temperature_initial_layer=210 --out $O
+  --set nozzle_temperature=210 --set nozzle_temperature_initial_layer=210 --set sparse_infill_pattern=grid --out $O
 ```
 
 Тонкие детали, на которые, возможно, придётся поднять число стенок или заполнение (PLA под нагрузкой около греющегося серво ползёт),
