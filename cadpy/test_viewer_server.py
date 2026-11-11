@@ -3,7 +3,7 @@ import json
 import unittest
 from types import SimpleNamespace
 
-from viewer_server import BrowserConnection, GROUPS, ModelReplay
+from viewer_server import BrowserConnection, GROUPS, ModelReplay, hide_splash
 
 
 class Socket:
@@ -62,9 +62,34 @@ class ReplayTests(unittest.TestCase):
         self.states(client, assembly=True)
         self.assertTrue(self.replay.health()["ready"])
 
+    def test_model_is_sent_immediately_when_page_registers(self):
+        self.replay.publish(self.viewer, "assembly")
+        client = self.client()
+        client.ws.incoming = ["L:{}"]
+        list(client)
+        self.assertIn(client, self.replay.clients)
+        self.assertEqual(client.ws.sent, ["assembly"])
+
+    def test_state_after_register_does_not_resend(self):
+        self.replay.publish(self.viewer, "assembly")
+        client = self.client()
+        client.ws.incoming = ["L:{}"]
+        list(client)
+        self.states(client)
+        self.assertEqual(client.ws.sent, ["assembly"])
+
     def test_cache_without_browser_is_not_ready(self):
         self.replay.publish(self.viewer, "assembly")
         self.assertFalse(self.replay.health()["ready"])
+
+
+class SplashTests(unittest.TestCase):
+    def test_splash_is_hidden_until_model_message(self):
+        page = hide_splash(b"<html><head><title>x</title></head><body></body></html>").decode()
+        self.assertIn("#cad_viewer{visibility:hidden}", page)
+        self.assertLess(page.index("visibility:hidden"), page.index("</head>"))
+        self.assertIn("setTimeout(reveal, 15000)", page)
+        self.assertEqual(page.count("</head>"), 1)
 
 
 if __name__ == "__main__":

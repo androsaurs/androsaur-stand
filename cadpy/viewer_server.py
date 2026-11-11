@@ -13,6 +13,29 @@ from websockets.exceptions import ConnectionClosed
 from websockets.sync.server import serve
 
 
+HIDE_SPLASH = b"""<style>#cad_viewer{visibility:hidden}</style>
+<script>
+(function () {
+    function reveal() {
+        var e = document.getElementById("cad_viewer");
+        if (e) e.style.visibility = "visible";
+    }
+    window.addEventListener("message", function (m) {
+        if (typeof m.data === "string" && /"type"\\s*:\\s*"data"/.test(m.data)) {
+            requestAnimationFrame(function () { requestAnimationFrame(reveal); });
+        }
+    });
+    setTimeout(reveal, 15000);
+})();
+</script>
+"""
+
+
+def hide_splash(html):
+    """Keep the OCP logo invisible until the first model arrives; show it anyway after 15 s."""
+    return html.replace(b"</head>", HIDE_SPLASH + b"</head>", 1)
+
+
 GROUPS = ("stand", "holder", "enclosure", "electronics", "fasteners")
 
 
@@ -75,6 +98,11 @@ class BrowserConnection:
                 self.replay.publish(self.viewer, payload)
                 continue
             yield raw
+            if kind == "L":
+                with self.replay.lock:
+                    self.initialized = True
+                    self.replay.clients.add(self)
+                    self.deliver()
             if kind == "U":
                 update = orjson.loads(payload)
                 states = update.get("text", {}).get("states", {}) if update.get("command") == "status" else {}
@@ -112,7 +140,10 @@ def main():
     def page(_connection, request):
         if request.path == "/health":
             return _response(HTTPStatus.OK, orjson.dumps(replay.health()), "application/json")
-        return respond(viewer, request)
+        response = respond(viewer, request)
+        if response is not None and request.path.partition("?")[0] == "/viewer":
+            return _response(HTTPStatus.OK, hide_splash(response.body), "text/html; charset=utf-8")
+        return response
 
     with serve(connection, "127.0.0.1", args.port, process_request=page,
                compression=None, max_size=None) as server:

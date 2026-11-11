@@ -1,77 +1,82 @@
 # Androsaur Stand
 
-Моторизованная подставка для старого Android-телефона: два серво MG996R (поворот и наклон),
-полая ножка для проводов, двухдетальный держатель телефона и корпус электроники 125 × 125 мм
-с динамиком, ESP32, усилителем и блоком питания. Часть проекта [Androsaur](https://github.com/androsaurs).
+**English** | [Русский](README.ru.md)
 
-Модель параметрическая, написана на **Python / build123d** (BRep, не сетка) и лежит в [`cadpy/`](cadpy/).
-Прежняя модель во FreeCAD удалена из рабочего дерева; она осталась в истории git (коммит `9d254f3`).
+A motorized stand for an old Android phone: two MG996R servos (pan and tilt), a hollow leg for the wires, a two-piece
+phone holder and a 125 × 125 mm electronics enclosure with a speaker, an ESP32, an amplifier and a power supply.
+Part of the [Androsaur](https://github.com/androsaurs) project: the stand turns the phone with the companion on its screen toward the person.
 
-![Сборка](docs/img/assembly.png)
+The model is parametric, written in **Python / build123d** (BRep, not a mesh) and lives in [`cadpy/`](cadpy/).
+The former FreeCAD model was removed from the working tree; it stays in the git history (commit `9d254f3`).
 
-## Состояние
+![Assembly](docs/img/assembly.png)
 
-Рабочий черновик для экспериментов, не готовый к печати комплект.
+## Status
 
-| Узел | Состояние |
+A working draft for experiments, not a ready-to-print kit. The parts were printed on 2026-11-11 and the electronics assembly is next.
+
+| Part | State |
 | --- | --- |
-| Поворотно-наклонный механизм | Собран и проверен на пересечения: наклон −2…100°, поворот 45–180° |
-| Держатель телефона (спинка + захват под Redmi 12: 76,3 × 9,0 мм) | Параметрический, разъём Type-C и кабель смоделированы; щель с зазорами 0,5 мм по бокам и 0,8 мм по толщине, пробная печать не сделана |
-| Корпус 125 × 125 × 70, две половины | Построен, подставка висит под крышкой, ножка выходит через отверстие в крышке |
-| Динамик FD92-1, полка, ESP32, усилитель, ЦАП | Размещены; размеры плат оценочные, кроме габаритов |
-| Блок питания | Пока куб-заглушка 60 × 38 × 26 мм, модуль не выбран |
-| Устойчивость | Стоит, но запас небольшой, нужен балласт ([проверки](docs/verification.md)) |
-| Прошивка, проводка, пробная печать | Не сделаны |
+| Pan-tilt mechanism | Assembled and checked for intersections: tilt −2…100°, pan 45–180° |
+| Phone holder (back plate + clamp for a Redmi 12: 76.3 × 9.0 mm) | Parametric, the Type-C connector and cable are modeled; the slot has 0.5 mm side and 0.8 mm thickness clearances; printed, the fit is not confirmed yet |
+| Enclosure 125 × 125 × 70, two halves | Built and printed; the stand hangs under the lid, the leg comes out through a hole in the lid; the power-jack hole was fixed in the model afterwards (Ø8.0) |
+| FD92-1 speaker, shelf, ESP32, amplifier, DAC | Placed; board sizes are estimates except for the overall dimensions |
+| Power module | HW-674 buck converter (bought), modeled as a 60 × 38 × 26 mm block |
+| Stability | It stands, but with a small margin; ballast is needed ([checks](docs/verification.md)) |
+| Electronics schematic | Drawn: [docs/schematic.svg](docs/schematic.svg); the checks before soldering: [docs/electronics-checks.md](docs/electronics-checks.md) |
+| Firmware, wiring | Not done |
 
-Подробности и открытые вопросы — в [docs/open-issues.md](docs/open-issues.md).
+Details and open questions: [docs/open-issues.md](docs/open-issues.md).
 
-## Быстрый старт
+## Quick start
 
 ```bash
 cd cadpy
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-./viewer.sh                       # просмотрщик http://127.0.0.1:3939/viewer, перерисовка при сохранении view.py
-.venv/bin/python check.py -2 45 90 100   # проверка пересечений при наклоне
-.venv/bin/python export.py        # STEP для FreeCAD и друзей -> exports/androsaur-stand-assembly.step
-.venv/bin/python export_stl.py    # STL деталей механизма и держателя для печати -> exports/stl/
-.venv/bin/python shots.py         # картинки для документации -> docs/img/
+./viewer.sh                       # viewer at http://127.0.0.1:3939/viewer, redraws when view.py is saved
+.venv/bin/python check.py -2 45 90 100   # intersection check while tilting
+.venv/bin/python export.py        # STEP for FreeCAD and friends -> exports/androsaur-stand-assembly.step
+.venv/bin/python export_stl.py    # STL of the mechanism and holder parts for printing -> exports/stl/
+.venv/bin/python shots.py         # pictures for the documentation -> docs/img/
 ```
 
-Подробнее: [docs/model-guide.md](docs/model-guide.md).
-Запуск, автоматическая загрузка после обновления вкладки и проверка отображения —
-[docs/viewer.md](docs/viewer.md).
+More: [docs/model-guide.md](docs/model-guide.md) (in Russian).
+Running the viewer, automatic loading after a tab refresh: [docs/viewer.md](docs/viewer.md) (in Russian).
 
-## Что где лежит
+## What is where
 
-| Путь | Что это |
+| Path | What it is |
 | --- | --- |
-| [`cadpy/pantilt.py`](cadpy/pantilt.py) | Механизм, основание, ножка и сборка `assemble()` всей модели |
-| [`cadpy/clip_holder.py`](cadpy/clip_holder.py) | Держатель телефона из двух деталей, штекер и кабель Type-C |
-| [`cadpy/enclosure.py`](cadpy/enclosure.py) | Корпус, полка, ножки корпуса, вентиляция, вход питания |
-| [`cadpy/speaker.py`](cadpy/speaker.py), [`esp32.py`](cadpy/esp32.py), [`amp.py`](cadpy/amp.py) | Габариты динамика, платы ESP32, усилителя, ЦАП, блока питания |
-| [`cadpy/check.py`](cadpy/check.py), [`pancheck.py`](cadpy/pancheck.py) | Проверка пересечений при наклоне и повороте |
-| [`cadpy/view.py`](cadpy/view.py), [`palette.py`](cadpy/palette.py) | Живой просмотр и цвета деталей |
-| [`cadpy/export.py`](cadpy/export.py), [`shots.py`](cadpy/shots.py) | Экспорт в STEP, картинки |
-| [`exports/`](exports/) | STEP сборки и проект FreeCAD с той же геометрией (для просмотра и обмена); [`exports/stl/`](exports/stl/): STL деталей для печати |
-| [`references/`](references/README.md) | Источники сторонних материалов (micromet, MG996R, держатель) |
-| [`docs/`](docs/) | Документация |
+| [`cadpy/pantilt.py`](cadpy/pantilt.py) | The mechanism, base, leg and the `assemble()` function of the whole model |
+| [`cadpy/clip_holder.py`](cadpy/clip_holder.py) | The two-piece phone holder, the Type-C plug and cable |
+| [`cadpy/enclosure.py`](cadpy/enclosure.py) | The enclosure, shelf, enclosure feet, ventilation, power inlet |
+| [`cadpy/speaker.py`](cadpy/speaker.py), [`esp32.py`](cadpy/esp32.py), [`amp.py`](cadpy/amp.py) | Dimensions of the speaker, the ESP32 board, amplifier, DAC and power module |
+| [`cadpy/check.py`](cadpy/check.py), [`pancheck.py`](cadpy/pancheck.py) | Intersection checks while tilting and panning |
+| [`cadpy/view.py`](cadpy/view.py), [`palette.py`](cadpy/palette.py) | Live view and part colors |
+| [`cadpy/export.py`](cadpy/export.py), [`shots.py`](cadpy/shots.py) | STEP export, pictures |
+| [`exports/`](exports/) | The assembly STEP and a FreeCAD project with the same geometry (for viewing and exchange); [`exports/stl/`](exports/stl/): STL of the parts for printing |
+| [`references/`](references/README.md) | Sources of third-party material (micromet, MG996R, the holder) |
+| [`docs/`](docs/) | Documentation |
 
-## Документация
+## Documentation
 
-- [Конструкция](docs/design.md): механизм, держатель, ножка, параметры
-- [Корпус и компоновка](docs/enclosure.md): размеры, координаты, порядок сборки, печать
-- [Крепёж](docs/fasteners.md): что и сколько купить
-- [Печать](docs/printing.md): STL по деталям, как класть, что печатать первым, настройки
-- [Электроника](docs/electronics.md): состав, питание, усилитель, серво, что искать в магазине
-- [Проверки](docs/verification.md): зазоры, пересечения, устойчивость, печатаемость
-- [Открытые вопросы](docs/open-issues.md)
-- [Работа с моделью](docs/model-guide.md)
-- [Системы координат](docs/interfaces.md)
-- [Названия деталей](docs/part-names.md), [состав](docs/bom.csv)
-- [Требования](docs/requirements.md)
+The documentation is in Russian for now.
 
-## Лицензия
+- [Design](docs/design.md): mechanism, holder, leg, parameters
+- [Enclosure and layout](docs/enclosure.md): dimensions, coordinates, assembly order, printing
+- [Fasteners](docs/fasteners.md): what and how many to buy
+- [Printing](docs/printing.md): STL per part, orientation, what to print first, settings
+- [Electronics](docs/electronics.md): components, power, amplifier, servos, what to look for in a shop
+- [Schematic](docs/schematic.svg) and [checks before soldering](docs/electronics-checks.md)
+- [Checks](docs/verification.md): clearances, intersections, stability, printability
+- [Open questions](docs/open-issues.md)
+- [Working with the model](docs/model-guide.md)
+- [Coordinate systems](docs/interfaces.md)
+- [Part names](docs/part-names.md), [bill of materials](docs/bom.csv)
+- [Requirements](docs/requirements.md)
 
-Собственные материалы — [CC BY-NC-SA 4.0](LICENSE). Геометрия механизма восстановлена по исходникам
-micromet (Thingiverse 1941574, CC BY-SA) и сохраняет их лицензию. У модели MG996R и держателя телефона,
-переданных владельцем, условия авторов не сообщены. Подробности рядом с источниками в `references/`.
+## License
+
+Our own materials are [CC BY-NC-SA 4.0](LICENSE). The mechanism geometry was reconstructed from the micromet sources
+(Thingiverse 1941574, CC BY-SA) and keeps their license. The authors' terms for the MG996R model and the phone holder
+supplied by the owner are not known. Details next to the sources in `references/`.

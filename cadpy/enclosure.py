@@ -90,7 +90,7 @@ def tpa_holes():
 ESP_SLOT_W = 1.8                 # header pins pass through; the 2.54 wide header bodies rest on the shelf
 
 # ---- DC inlet (barrel jack 5.5 x 2.1, panel mount) and vent slots in the rear (-X) walls ----
-JACK_HOLE_D = 11.0              # typical panel-mount DC jack body (threaded barrel)
+JACK_HOLE_D = 8.0               # owner's jack: thread dia 7.6 + 0.4 clearance (as M3 -> 3.4); the flange does not pass
 JACK_Y, JACK_Z = 0.0, 13.0      # centred on the rear wall; vents are symmetric around it
 VENT_W, VENT_PITCH = 3.0, 7.0
 VENT_Y_MAX = 44.0               # slots span Y -42..42 (clear of the corner posts)
