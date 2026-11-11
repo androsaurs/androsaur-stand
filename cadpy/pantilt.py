@@ -14,11 +14,20 @@ import amp
 import hardware
 
 # ---- parameters -----------------------------------------------------------
-RISER = 104.0       # top of the hollow leg above the sole bottom (SCAD original 12): lets the Type-C cable meet the charger window at the vertical pose
+RISER = 104.0       # accepted world Z of the leg top; stays fixed when the sole moves up
 SOLE = 4.0
+BOX_Z0 = -58.0      # accepted enclosure datum, independent of roof thickness
+BASE_Z0 = BOX_Z0 + enclosure.BOX_H - enclosure.TOP_T - SOLE  # sole top touches roof underside
 BASE_L, BASE_W = 85.0, 85.0   # sole footprint (SCAD original: 85 x 42); leg stays in the centre
+BASE_SOCKET_CLEARANCE = 0.4  # diametral clearance over the box_upper stand bosses
+BASE_MOUNT_INSET = 10.0     # leaves 5.3 mm from the 9.4 mm sockets to the sole edge
+BASE_MOUNT_POINTS = tuple((x, y) for x, y in (
+    (BASE_MOUNT_INSET, BASE_MOUNT_INSET), (BASE_MOUNT_INSET, BASE_W - BASE_MOUNT_INSET),
+    (BASE_L - BASE_MOUNT_INSET, BASE_W - BASE_MOUNT_INSET), (BASE_L - BASE_MOUNT_INSET, BASE_MOUNT_INSET)))
 LEG_R, CAVITY_R = 18.2, 15.2   # wall = 3.0 (was 6.2 with CAVITY_R 12)
 CAVITY_TOP = RISER - 7.0   # = bottom of the carrier cup (RISER + ROOF_GAP - 7.5), so the cavity ends where the cup starts
+CONE_Z0 = 84.0     # the cavity narrows from CAVITY_R to the cable hole between here and CAVITY_TOP: a printable vault instead of a flat 30 mm bridge
+CABLE_HOLE_R = 4.2
 SEAT_DEPTH = 4.0
 WINDOWS = (         # (name, width, height, fraction of visible leg height from the bottom)
     ("charger", 12.0, 18.0, 0.25),
@@ -86,23 +95,27 @@ def servo():
 
 # ---- base: plate with riser ----------------------------------------------
 def base():
-    p = bx(0, BASE_L, 0, BASE_W, 0, SOLE)
+    p = bx(0, BASE_L, 0, BASE_W, BASE_Z0, BASE_Z0 + SOLE)
     p = fillet(p.edges().filter_by(Axis.Z), 4)
     cx, cy = BASE_L / 2, BASE_W / 2
-    p += cz(LEG_R, RISER, cx, cy, 0)
-    p -= cz(CAVITY_R, CAVITY_TOP + 1, cx, cy, -1)   # open through the sole (as in the original model)
-    p -= cz(4.2, RISER, cx, cy, CAVITY_TOP - 1)
+    p += cz(LEG_R, RISER - BASE_Z0, cx, cy, BASE_Z0)
+    p -= cz(CAVITY_R, CONE_Z0 - BASE_Z0 + 1, cx, cy, BASE_Z0 - 1)   # open through the raised sole
+    p -= Pos(cx, cy, CONE_Z0) * Cone(CAVITY_R, CABLE_HOLE_R, CAVITY_TOP - CONE_Z0, align=(Align.CENTER, Align.CENTER, Align.MIN))   # vault: 40 degrees from vertical
+    p -= cz(CABLE_HOLE_R, RISER, cx, cy, CAVITY_TOP - 1)
     p -= cz(10.7, SEAT_DEPTH, cx, cy, RISER - SEAT_DEPTH)
     for dx, dy in ((-7.8, 0), (7.8, 0), (0, -7.8), (0, 7.8)):
-        p -= cz(1, 9, cx + dx, cy + dy, RISER - 9)
-    for x, y in ((6, 6), (6, BASE_W - 6), (BASE_L - 6, BASE_W - 6), (BASE_L - 6, 6)):
-        p -= cz(2, SOLE + 2, x, y, -1)
-        p -= cz(enclosure.CBORE_D / 2, enclosure.CBORE_DEPTH + 1, x, y, -1)   # head recess on the underside: M3x6 reaches the lid
-    visible = CAVITY_TOP - SOLE
+        p -= cz(1, RISER - CONE_Z0, cx + dx, cy + dy, CONE_Z0)   # through, from the top face into the cavity (was blind, 9 deep)
+    for x, y in BASE_MOUNT_POINTS:
+        p -= cz((enclosure.STAND_BOSS_D + BASE_SOCKET_CLEARANCE) / 2, SOLE + 2, x, y, BASE_Z0 - 1)
+    visible = CAVITY_TOP - SOLE   # original datum keeps both cable windows at their accepted world Z
     for _, w, h, frac in WINDOWS:
-        win = Box(25, w, h)
-        win = fillet(win.edges().filter_by(Axis.X), WINDOW_R)
-        p -= Pos(cx + 12.5, cy, SOLE + visible * frac) * win
+        # window with a round top (semicircle of radius w/2): the top is a vault, not a flat bridge; total height h is unchanged
+        r = w / 2
+        low = Box(25, w, h - r)
+        low = fillet(low.edges().filter_by(Axis.X).sort_by(Axis.Z)[:2], WINDOW_R)   # only the bottom corners
+        arch = Pos(0, 0, (h - r) / 2) * (Rot(0, 90, 0) * Cylinder(r, 25))
+        win = low + arch
+        p -= Pos(cx + 12.5, cy, SOLE + visible * frac - r / 2) * win
     return p
 
 
@@ -223,6 +236,7 @@ def print_parts():
     return {
         "base": base(), "carrier": carrier(), "plate_horn": plate_horn_side(), "plate_shaft": plate_shaft_side(),
         "platform": platform(), "body": clip_holder.body_local(PLATFORM_X1 - origin_x, holes), "grip": clip_holder.grip(),
+        "stand_washer": enclosure.stand_washer(),
     }
 
 
@@ -292,11 +306,15 @@ def assemble(tilt_deg=0.0, pan_deg=0.0, cable=False, box=True, speaker=True, hw=
             parts[k] = pan * Pos(0, dy, 0) * parts[k]
     for k, v in hold.items():
         parts[k] = pan * Pos(0, dy, 0) * v
+    washer_z = BASE_Z0 - enclosure.STAND_WASHER_T
+    washer = enclosure.stand_washer()
+    for i, (x, y) in enumerate(BASE_MOUNT_POINTS):
+        parts[f"stand_washer{i}"] = Pos(x, y, washer_z) * washer
     if box:   # enclosure: base plate hangs under the ceiling inside the box, the leg passes through the ceiling hole
-        stand_holes = [(x - BASE_L / 2, y - BASE_W / 2) for x, y in ((6, 6), (6, BASE_W - 6), (BASE_L - 6, BASE_W - 6), (BASE_L - 6, 6))]
-        to_box = Pos(cx, cy, SOLE + enclosure.TOP_T - enclosure.BOX_H)
+        stand_holes = [(x - BASE_L / 2, y - BASE_W / 2) for x, y in BASE_MOUNT_POINTS]
+        to_box = Pos(cx, cy, BOX_Z0)
         parts["box_lower"] = to_box * enclosure.lower()
-        parts["box_upper"] = to_box * enclosure.upper(stand_holes)
+        parts["box_upper"] = to_box * enclosure.upper(stand_holes, stand_boss_h=SOLE)
         if speaker:   # FD92-1 face down on standoffs over the floor grille, centred under the leg
             parts["shelf"] = to_box * enclosure.shelf()
             # ESP32 lies on the flat shelf top (pins through slots, antenna to the -Y wall); the amplifier hangs under the shelf
@@ -315,10 +333,10 @@ def assemble(tilt_deg=0.0, pan_deg=0.0, cable=False, box=True, speaker=True, hw=
             parts["speaker"] = to_box * Pos(enclosure.SPK_X, enclosure.SPK_Y, enclosure.FLOOR_T + enclosure.SPK_STANDOFF) * Rot(X=180) * spk.speaker()
     if hw:
         bolt = hardware.screw
-        for i, (x, y) in enumerate(((6, 6), (6, BASE_W - 6), (BASE_L - 6, BASE_W - 6), (BASE_L - 6, 6))):   # base plate to the lid
-            parts[f"hw_stand{i}"] = hardware.at(x, y, enclosure.CBORE_DEPTH) * bolt("M3", 6)
+        for i, (x, y) in enumerate(BASE_MOUNT_POINTS):   # base plate to the lid
+            parts[f"hw_stand{i}"] = hardware.at(x, y, washer_z) * bolt("M3", enclosure.STAND_SCREW_L)
         if box:
-            tb = Pos(cx, cy, SOLE + enclosure.TOP_T - enclosure.BOX_H)
+            tb = Pos(cx, cy, BOX_Z0)
             for i, (x, y) in enumerate(enclosure.POSTS):    # halves together, from below
                 parts[f"hw_join{i}"] = tb * hardware.at(x, y, enclosure.POST_CBORE_DEPTH) * bolt("M3", 12)
             if speaker:

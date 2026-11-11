@@ -16,7 +16,12 @@ BOX_H = 70.0            # total height
 SEAM_Z = BOX_H / 2      # split plane
 WALL = 3.0
 FLOOR_T = 4.0
-TOP_T = 8.0             # whole lid thick: stand screws go into blind pilots, nothing shows on top
+TOP_T = 3.0             # roof skin; local stand bosses provide the screw engagement
+STAND_BOSS_D = 9.0      # same diameter as the enclosure corner posts
+STAND_WASHER_D, STAND_WASHER_T = 18.0, 3.0
+STAND_WASHER_HOLE_D = 3.4
+STAND_WASHER_RELIEF_D, STAND_WASHER_RELIEF_DEPTH = STAND_BOSS_D + 0.8, 0.5
+STAND_SCREW_L = 8.0    # 3 mm washer + 5 mm engagement; 1 mm clear of the blind pilot bottom
 CORNER_R = 6.0
 FIT = 0.3               # clearance between the tongue and the lower walls
 POST_D = 9.0
@@ -199,8 +204,21 @@ def foot():
     return f
 
 
-def upper(stand_holes=()):
-    """stand_holes: (x, y) offsets from the box centre for the stand's base-plate screws."""
+def stand_washer():
+    """Printed 18 x 3 mm clamp washer; relieved face goes against the stand sole.
+
+    The 9.8 x 0.5 mm relief clears the peg tip, so tightening clamps the sole
+    instead of bottoming out on the peg. Print flat back down, relief up.
+    """
+    w = _cyl(STAND_WASHER_D / 2, STAND_WASHER_T, 0, 0, 0)
+    w -= _cyl(STAND_WASHER_HOLE_D / 2, STAND_WASHER_T + 2, 0, 0, -1)
+    w -= _cyl(STAND_WASHER_RELIEF_D / 2, STAND_WASHER_RELIEF_DEPTH + 1,
+              0, 0, STAND_WASHER_T - STAND_WASHER_RELIEF_DEPTH)
+    return w
+
+
+def upper(stand_holes=(), stand_boss_h=4.0):
+    """stand_holes: screw centres; stand_boss_h: stand sole thickness (passed by assemble)."""
     h = BOX_H - SEAM_Z
     u = _rounded(BOX_L, BOX_W, h, CORNER_R, z0=SEAM_Z)
     u -= _rounded(BOX_L - 2 * WALL, BOX_W - 2 * WALL, h - TOP_T + 1, CORNER_R - WALL, z0=SEAM_Z - 1)
@@ -224,5 +242,7 @@ def upper(stand_holes=()):
     u -= _vents(*UPPER_VENT_Z, skip_jack=False)
     u -= _cyl(OPENING_D / 2, TOP_T + 2, 0, 0, BOX_H - TOP_T - 1)
     for x, y in stand_holes:
-        u -= _cyl(STAND_PILOT_D / 2, STAND_PILOT_DEPTH + 1, x, y, BOX_H - TOP_T - 1)
+        boss_z = BOX_H - TOP_T - stand_boss_h
+        u += _cyl(STAND_BOSS_D / 2, stand_boss_h + 0.25, x, y, boss_z)
+        u -= _cyl(STAND_PILOT_D / 2, STAND_PILOT_DEPTH + 1, x, y, boss_z - 1)
     return u

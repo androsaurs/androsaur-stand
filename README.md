@@ -38,6 +38,8 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ```
 
 Подробнее: [docs/model-guide.md](docs/model-guide.md).
+Запуск, автоматическая загрузка после обновления вкладки и проверка отображения —
+[docs/viewer.md](docs/viewer.md).
 
 ## Что где лежит
 

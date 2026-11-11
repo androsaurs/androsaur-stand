@@ -41,11 +41,15 @@ def style(name):
     """(hex colour, opacity) of a part."""
     if name.startswith("hw_"):
         return FASTENER_COLOR, 1.0
+    if name.startswith("stand_washer"):
+        return "#f5b041", 1.0
     return COLORS.get(name, DEFAULT_COLOR), OPACITY.get(name, 1.0)
 
 
 def group_path(name):
     """('group',) or ('fasteners', 'joint') for a part name."""
+    if name.startswith("stand_washer"):
+        return ("fasteners", "stand-to-lid")
     if name.startswith("hw_"):
         for prefix, joint in FASTENER_JOINTS.items():
             if name.startswith(prefix):
