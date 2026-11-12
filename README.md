@@ -24,7 +24,7 @@ A working draft for experiments, not a ready-to-print kit. The parts were printe
 | Power module | HW-674 buck converter (bought), modeled as a 60 × 38 × 26 mm block |
 | Stability | It stands, but with a small margin; ballast is needed ([checks](docs/verification.md)) |
 | Electronics schematic | Drawn: [docs/schematic.svg](docs/schematic.svg); the checks before soldering: [docs/electronics-checks.md](docs/electronics-checks.md) |
-| Firmware, wiring | Not done |
+| Firmware, wiring | BLE setup from an exterior QR label and HTTPS authorization implemented; actuator/audio drivers and wiring remain |
 
 Details and open questions: [docs/open-issues.md](docs/open-issues.md).
 

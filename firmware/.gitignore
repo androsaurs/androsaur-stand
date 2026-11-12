@@ -1,0 +1,9 @@
+build/
+build-ble/
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock
+# Local secrets (Wi-Fi, tokens): never committed.
+*.local.*
+labels.local/
