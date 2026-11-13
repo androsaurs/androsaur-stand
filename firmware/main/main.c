@@ -25,6 +25,8 @@
 #include "cJSON.h"
 #include "stand_security.h"
 #include "stand_http.h"
+#include "stand_tracking.h"
+#include "stand_battery.h"
 
 static const char *TAG="stand";
 static bool mdns_started;
@@ -140,7 +142,11 @@ static void start_ble(void) {
     ESP_LOGI(TAG,"BLE setup ready: %s (scan the label)",service_name);
 }
 static void events(void *ctx, esp_event_base_t base, int32_t id, void *data) {
-    (void)ctx; (void)data;
+    (void)ctx;
+    if (base==WIFI_EVENT && id==WIFI_EVENT_STA_DISCONNECTED && data) {
+        const wifi_event_sta_disconnected_t *event=data;
+        ESP_LOGW(TAG,"Wi-Fi disconnected: reason=%u, RSSI=%d",event->reason,event->rssi);
+    }
     if (base==WIFI_EVENT && configured && !restarting &&
         (id==WIFI_EVENT_STA_START || id==WIFI_EVENT_STA_DISCONNECTED)) esp_wifi_connect();
     if (base==IP_EVENT && id==IP_EVENT_STA_GOT_IP && stand_owned()) {
@@ -175,6 +181,8 @@ void app_main(void) {
     ESP_ERROR_CHECK(esp_srp_gen_salt_verifier("androsaur",9,setup_code,32,&setup_salt,16,&setup_verifier,&verifier_len));
     setup_security=(protocomm_security2_params_t){.salt=setup_salt,.salt_len=16,.verifier=setup_verifier,.verifier_len=verifier_len};
     bootloader_random_disable();
+    stand_tracking_init();
+    stand_battery_init();
     snprintf(service_name,sizeof(service_name),"ANDRO_%s",stand_id+strlen(stand_id)-6);
     nvs_handle_t settings; ESP_ERROR_CHECK(nvs_open("stand_boot",NVS_READWRITE,&settings));
     uint8_t boots=0; nvs_get_u8(settings,"fast",&boots);

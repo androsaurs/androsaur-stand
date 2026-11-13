@@ -1,0 +1,66 @@
+menu "Androsaur tracking"
+config STAND_SERVO_OUTPUT
+    bool "Enable calibrated servo PWM output"
+    default n
+    help
+        Keep disabled until wiring, power and mechanical limits have been checked.
+config STAND_PAN_GPIO
+    int "Pan GPIO (-1 = unconfigured)"
+    range -1 21
+    default -1
+config STAND_TILT_GPIO
+    int "Tilt GPIO (-1 = unconfigured)"
+    range -1 21
+    default -1
+config STAND_PAN_MIN_US
+    int "Pan minimum pulse (us)"
+    range 500 2500
+    default 1500
+config STAND_PAN_MAX_US
+    int "Pan maximum pulse (us)"
+    range 500 2500
+    default 1500
+config STAND_PAN_NEUTRAL_US
+    int "Pan neutral pulse (us)"
+    range 500 2500
+    default 1500
+config STAND_TILT_MIN_US
+    int "Tilt minimum pulse (us)"
+    range 500 2500
+    default 1500
+config STAND_TILT_MAX_US
+    int "Tilt maximum pulse (us)"
+    range 500 2500
+    default 1500
+config STAND_TILT_NEUTRAL_US
+    int "Tilt neutral pulse (us)"
+    range 500 2500
+    default 1500
+config STAND_PAN_REVERSE
+    bool "Reverse pan response"
+    default n
+config STAND_TILT_REVERSE
+    bool "Reverse tilt response"
+    default n
+endmenu
+
+menu "Androsaur phone charging"
+config STAND_CHARGER_OUTPUT
+    bool "Enable confirmed charger switch output"
+    default n
+config STAND_CHARGER_GPIO
+    int "Charger GPIO (-1 = unconfigured)"
+    range -1 21
+    default -1
+config STAND_CHARGER_ACTIVE_LOW
+    bool "Charger enable is active low"
+    default n
+config STAND_CHARGE_START_PERCENT
+    int "Resume charging at or below (%)"
+    range 0 99
+    default 40
+config STAND_CHARGE_STOP_PERCENT
+    int "Pause charging at or above (%)"
+    range 1 100
+    default 80
+endmenu

@@ -64,8 +64,9 @@ ignored by Git. Print the label and attach it to the exterior of the enclosure.
 Never publish it: it contains a setup credential. No owner/hub key or Wi-Fi password
 is included. The same label remains valid after a normal reboot or owner release.
 
-Capabilities are `status` and `policy` only: quiet state is persisted, but audio,
-motor and sensor drivers are not implemented yet. Siren and OTA are not advertised.
+The prepared 0.3 firmware supports `status`, `policy`, and `tracking`: quiet state
+is persisted, tracking input/controller is implemented, servo PWM is disabled until
+calibrated. Audio and sensor drivers, siren and OTA are not implemented or advertised.
 Future MCP methods must reuse these authorization checks. NVS corruption fails
 closed instead of automatically erasing ownership. Private TLS keys remain in NVS;
 physical flash encryption/secure boot are not enabled in this prototype.
@@ -83,6 +84,45 @@ idf.py -B build-ble -DSDKCONFIG=sdkconfig.ble.local.config -p /dev/ttyACM0 -b 92
 
 ## Hardware roadmap
 
+### Tracking implementation (included in 0.4.0-battery, flashed 2026-11-13)
+
+Temporary bring-up Wi-Fi TX ceiling is 10 dBm (previously20) via
+`CONFIG_ESP_PHY_MAX_WIFI_TX_POWER`. This caps PHY initialisation data as well as
+normal operation; a post-start `esp_wifi_set_max_tx_power()` call alone would be
+too late for the brownout seen during PHY init. Existing local sdkconfig must also
+be updated, because defaults do not override saved values. `/v1/status.phyTxLimitDbm`
+reports the configured PHY ceiling, not a measurement of RF output or board power.
+Expect reduced radio range; actual effect on supply stability must be measured.
+Brownout detection stays enabled. This ceiling is installed on the development board.
+TLS allocations use its 8 MB PSRAM, retaining the standard 16 KB incoming record limit
+and leaving internal memory for Wi-Fi/BLE. HTTPS permits five concurrent sessions.
+Status includes free internal bytes and the largest internal block for diagnostics.
+
+Owner-only `POST /v1/tracking` accepts `{v:1,session,seq,ageMs,visible,x,y}`.
+X/Y are signed normalised face errors, X right and Y up. Lost target uses null X/Y.
+Each accepted new observation computes one bounded incremental correction; duplicates,
+older sequence numbers, retired sessions, out-of-range coordinates and age >500 ms
+are rejected. A 20 ms task smooths pulse changes and stops changing them after loss
+or expiry, retaining holding PWM. It never repeats a correction for the same frame.
+
+Servo configuration is in `idf.py menuconfig` → Androsaur tracking. GPIO defaults
+to -1, limits to the zero-width 1500…1500 us range, output disabled. Confirm GPIO,
+neutral, actual safe pulse limits and axis directions before enabling output;
+the neutral pulse is applied at startup. Limits are not inferred from CAD angles.
+Gains currently start at 40 us/unit, max step20 us, slew100 us/s, deadband0.04 and
+must be tuned on the real mechanism. `tracking` capability means the input/controller
+exists; `/v1/status.tracking.outputEnabled` states whether PWM is actually enabled.
+
+Host controller checks, no connected servo required:
+
+```bash
+cc -std=c11 -Wall -Wextra -Werror -I main main/tracking_core.c tests/test_tracking_core.c -lm -o /tmp/stand-tracking-test
+/tmp/stand-tracking-test
+```
+
+The firmware build is checked. Do not flash or enable motors while the board is
+resetting with `Brownout detector was triggered`; first restore stable power.
+
 0. **Bring-up of the bare board (done, 2026-11-12).** Chip ESP32-S3 rev v0.2, 16 MB flash, 8 MB PSRAM (80 MHz, memory test OK),
    Wi-Fi radio starts, heartbeat each 2 s without resets. Found on real hardware: the main task stack (3.5 KB by default)
    overflowed in the Wi-Fi scan; now 8 KB. The radio scan found no networks because the home network is 5 GHz only
@@ -91,3 +131,42 @@ idf.py -B build-ble -DSDKCONFIG=sdkconfig.ble.local.config -p /dev/ttyACM0 -b 92
 2. Servos on GPIO4 (pan) and GPIO5 (tilt): LEDC PWM, smoothing, angle limits (docs/schematic.svg).
 3. I2S to PCM5102A (BCK 15, LRCK 16, DIN 17), volume ceiling about 15% of full scale before the first sound.
 4. Charger switch on GPIO6 (HW-532 module).
+
+### Phone battery and charging (0.4.0-battery)
+
+The owner phone sends `POST /v1/battery` over the same pinned HTTPS pool as face
+observations. The hub credential cannot submit battery measurements. Packet:
+
+```json
+{"v":1,"session":"00000000-0000-0000-0000-000000000001","seq":1,"ageMs":20,"percent":75,"charging":true}
+```
+
+Percent is an integer 0…100; `charging` is the phone's actual Android charging
+status, not presence of a cable. Unknown readings are omitted, never sent as 0%.
+A separate latest-only battery queue shares the serial sender with camera results,
+so no TLS handshake is needed per report and camera/hub availability is not required.
+Android checks system battery state each second, sends on change and repeats at
+15-second intervals. Measurement age is rechecked after TLS connection; packets
+older than 60 seconds, duplicate sequences and retired sessions are rejected.
+
+ESP owns charging policy: default resume at <=40%, pause at >=80%, retain the
+previous decision in between. Restarting the phone session retains hysteresis.
+No report at boot, or no fresh battery data for more than 10 minutes, allows power;
+removing ownership also allows power. These are software decisions, not proof of
+physical USB voltage. `/v1/status.battery` reports `percent`, `charging`, `ageMs`,
+`seq`, `chargeAllowed`, thresholds, state and `outputEnabled` separately.
+
+`menuconfig` → Androsaur phone charging configures thresholds, GPIO and active
+polarity. Physical switching defaults OFF, GPIO -1. GPIO6 in the schematic is only
+a proposal: confirm wiring and the HW-532 enable polarity before enabling it.
+On a confirmed output the initial software state is power enabled; reset/unpowered
+MCU behavior also depends on actual wiring and pull resistors and is not guaranteed
+by this firmware. Charging control reduces time at high state of charge; it does
+not diagnose or guarantee prevention of battery swelling or overheating.
+
+Host policy checks:
+
+```bash
+cc -std=c11 -Wall -Wextra -Werror -I main main/battery_core.c tests/test_battery_core.c -o /tmp/stand-battery-test
+/tmp/stand-battery-test
+```
