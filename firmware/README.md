@@ -48,6 +48,7 @@ fingerprint received over the secured BLE session. No HTTP fallback is provided.
   while associated. Android uses this if mDNS fails, then authenticates over pinned
   HTTPS as usual. The last verified address is retained across Android restarts.
 - `/v1/status`: owner or hub key; `/v1/hub`: owner only, set/revoke hub key;
+- `/v1/logs`: persistent diagnostic ring (owner or delegated hub key; last 128 boot/Wi-Fi/IP/HTTPS events);
   `/v1/policy`: persist boolean `quiet`, owner or hub key. All require HTTPS/Bearer.
 
 ### One-time manufacturing label

@@ -29,3 +29,29 @@ docs/model-guide.md и docs/open-issues.md. Требования — docs/requir
 
 История состояния до перехода на build123d: коммит 9d254f3 в истории git. Старые файлы FreeCAD в рабочее дерево
 не возвращать без отдельной задачи.
+
+## Прошивка: запуск ESP-IDF
+
+Проверенное окружение — ESP-IDF 5.5, Python 3.10.12. Перед запуском `idf.py` в каждой новой shell-сессии
+явно выбрать существующее Python-окружение и активировать ESP-IDF:
+
+```bash
+export IDF_PYTHON_ENV_PATH=/home/hram/.espressif/python_env/idf5.5_py3.10_env
+source /home/hram/esp/esp-idf/export.sh
+cd /mnt/fastdata/hram/projects/androsaurs/androsaur-stand/firmware
+python /home/hram/esp/esp-idf/tools/idf.py \
+  -B build-ble -DSDKCONFIG=sdkconfig.ble.local.config build
+```
+
+Прошивка подключённой ESP32-S3 (когда запись на плату входит в задачу):
+
+```bash
+python /home/hram/esp/esp-idf/tools/idf.py \
+  -B build-ble -DSDKCONFIG=sdkconfig.ble.local.config \
+  -p /dev/ttyACM0 -b 921600 flash
+```
+
+Использовать `build-ble` и `sdkconfig.ble.local.config`: старый sdkconfig может выключить BLE.
+Если ESP-IDF ищет отсутствующее окружение для системного Python (например, `idf5.5_py3.14_env`),
+сначала выполнить активацию выше и проверить `python --version` и `idf.py --version`.
+Это само по себе не означает, что рабочее окружение отсутствует; не переустанавливать его по такой ошибке.

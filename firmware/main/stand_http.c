@@ -2,6 +2,7 @@
 #include "stand_security.h"
 #include "stand_tracking.h"
 #include "stand_battery.h"
+#include "stand_log.h"
 #include <string.h>
 #include <stdlib.h>
 #include "esp_https_server.h"
@@ -37,7 +38,7 @@ static esp_err_t status(httpd_req_t *req) {
     if (!auth(req, false)) return ESP_OK;
     cJSON *obj=cJSON_CreateObject(); cJSON_AddStringToObject(obj,"id",stand_id);
     char phone[65]; stand_owner_id(phone); cJSON_AddStringToObject(obj,"phoneId",phone);
-    cJSON_AddStringToObject(obj,"firmware","0.4.0-battery"); cJSON_AddNumberToObject(obj,"protocol",1);
+    cJSON_AddStringToObject(obj,"firmware","0.5.0-persistent-logs"); cJSON_AddNumberToObject(obj,"protocol",1);
     cJSON_AddNumberToObject(obj,"phyTxLimitDbm",CONFIG_ESP_PHY_MAX_WIFI_TX_POWER);
     cJSON_AddNumberToObject(obj,"freeInternalBytes",heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
     cJSON_AddNumberToObject(obj,"largestInternalBlockBytes",heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
@@ -48,7 +49,12 @@ static esp_err_t status(httpd_req_t *req) {
     cJSON_AddItemToObject(obj,"tracking",stand_tracking_status());
     cJSON_AddItemToArray(caps,cJSON_CreateString("battery"));
     cJSON_AddItemToObject(obj,"battery",stand_battery_status());
+    cJSON_AddItemToArray(caps,cJSON_CreateString("logs"));
     return json(req,obj);
+}
+static esp_err_t logs(httpd_req_t *req) {
+    if (!auth(req, false)) return ESP_OK;
+    return json(req, stand_log_json());
 }
 static esp_err_t hub(httpd_req_t *req) {
     if (!auth(req,true)) return ESP_OK;
@@ -87,6 +93,7 @@ void stand_http_start(void) {
     cfg.prvtkey_pem=(const unsigned char *)stand_private_key; cfg.prvtkey_len=strlen(stand_private_key)+1;
     ESP_ERROR_CHECK(httpd_ssl_start(&server,&cfg));
     httpd_uri_t routes[]={ {.uri="/v1/status",.method=HTTP_GET,.handler=status},
+        {.uri="/v1/logs",.method=HTTP_GET,.handler=logs},
         {.uri="/v1/hub",.method=HTTP_POST,.handler=hub}, {.uri="/v1/policy",.method=HTTP_POST,.handler=policy},
         {.uri="/v1/tracking",.method=HTTP_POST,.handler=tracking},
         {.uri="/v1/battery",.method=HTTP_POST,.handler=battery} };

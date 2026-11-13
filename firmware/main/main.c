@@ -27,6 +27,7 @@
 #include "stand_http.h"
 #include "stand_tracking.h"
 #include "stand_battery.h"
+#include "stand_log.h"
 
 static const char *TAG="stand";
 static bool mdns_started;
@@ -146,16 +147,23 @@ static void events(void *ctx, esp_event_base_t base, int32_t id, void *data) {
     if (base==WIFI_EVENT && id==WIFI_EVENT_STA_DISCONNECTED && data) {
         const wifi_event_sta_disconnected_t *event=data;
         ESP_LOGW(TAG,"Wi-Fi disconnected: reason=%u, RSSI=%d",event->reason,event->rssi);
+        stand_log_event(STAND_LOG_WIFI_DISCONNECTED, event->reason, event->rssi, NULL);
     }
+    if (base==WIFI_EVENT && id==WIFI_EVENT_STA_START)
+        stand_log_event(STAND_LOG_WIFI_START, 0, -127, NULL);
     if (base==WIFI_EVENT && configured && !restarting &&
         (id==WIFI_EVENT_STA_START || id==WIFI_EVENT_STA_DISCONNECTED)) esp_wifi_connect();
-    if (base==IP_EVENT && id==IP_EVENT_STA_GOT_IP && stand_owned()) {
+    if (base==IP_EVENT && id==IP_EVENT_STA_GOT_IP && data && stand_owned()) {
+        const ip_event_got_ip_t *event=data;
+        char address[16]; snprintf(address,sizeof(address),IPSTR,IP2STR(&event->ip_info.ip));
+        stand_log_event(STAND_LOG_GOT_IP, 0, -127, address);
         stand_http_start();
         if (!mdns_started) {
             ESP_ERROR_CHECK(mdns_init()); ESP_ERROR_CHECK(mdns_hostname_set(stand_id));
             mdns_txt_item_t txt[]={{"id",stand_id},{"protocol","1"}};
             ESP_ERROR_CHECK(mdns_service_add(stand_id,"_androsaur-stand","_tcp",8443,txt,2)); mdns_started=true;
         }
+        stand_log_event(STAND_LOG_HTTPS_READY, 0, -127, "8443");
         ESP_LOGI(TAG,"network ready: %s, HTTPS port 8443",stand_id);
     }
 }
@@ -176,6 +184,8 @@ static void console(void *arg) {
 }
 void app_main(void) {
     ESP_ERROR_CHECK(nvs_flash_init());
+    stand_log_init();
+    stand_log_event(STAND_LOG_BOOT, (int)esp_reset_reason(), -127, NULL);
     bootloader_random_enable(); stand_security_init(); stand_setup_secret(setup_code);
     int verifier_len=0;
     ESP_ERROR_CHECK(esp_srp_gen_salt_verifier("androsaur",9,setup_code,32,&setup_salt,16,&setup_verifier,&verifier_len));
