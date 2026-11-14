@@ -1,4 +1,10 @@
 menu "Androsaur tracking"
+config STAND_SERVO_MANUAL_CONTROL
+    bool "Allow authenticated owner/hub manual servo control"
+    default y
+    help
+        Standard bounded HTTPS control, 1450..1550 us, at most 5 seconds per command.
+        Does not start PWM at boot or enable tracking. Confirm wiring before commands.
 config STAND_SERVO_OUTPUT
     bool "Enable calibrated servo PWM output"
     default n
@@ -7,11 +13,11 @@ config STAND_SERVO_OUTPUT
 config STAND_PAN_GPIO
     int "Pan GPIO (-1 = unconfigured)"
     range -1 21
-    default -1
+    default 4
 config STAND_TILT_GPIO
     int "Tilt GPIO (-1 = unconfigured)"
     range -1 21
-    default -1
+    default 5
 config STAND_PAN_MIN_US
     int "Pan minimum pulse (us)"
     range 500 2500
@@ -45,13 +51,16 @@ config STAND_TILT_REVERSE
 endmenu
 
 menu "Androsaur phone charging"
+config STAND_CHARGER_MANUAL_CONTROL
+    bool "Allow authenticated owner/hub timed charger control"
+    default y
 config STAND_CHARGER_OUTPUT
-    bool "Enable confirmed charger switch output"
+    bool "Enable automatic battery-policy charger switching"
     default n
 config STAND_CHARGER_GPIO
     int "Charger GPIO (-1 = unconfigured)"
     range -1 21
-    default -1
+    default 6
 config STAND_CHARGER_ACTIVE_LOW
     bool "Charger enable is active low"
     default n

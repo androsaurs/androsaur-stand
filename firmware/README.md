@@ -7,12 +7,14 @@ Decision of 2026-11-12: the stand is a Wi-Fi module of Androsaur (HTTP and MCP o
 ## Build and flash
 
 ```bash
-. ~/esp/esp-idf/export.sh           # ESP-IDF v5.5, installed with: ./install.sh esp32s3 (Python 3.10-3.13)
-idf.py -DIDF_TARGET=esp32s3 build
-idf.py -p /dev/ttyACM0 -b 921600 flash     # the port labelled UART on the board (WCH bridge, 1a86:55d3)
+export IDF_PYTHON_ENV_PATH=/home/hram/.espressif/python_env/idf5.5_py3.10_env
+source /home/hram/esp/esp-idf/export.sh
+idf.py -B build-ble -DSDKCONFIG=sdkconfig.ble.local.config build
+idf.py -B build-ble -DSDKCONFIG=sdkconfig.ble.local.config -p /dev/ttyACM0 -b 921600 flash
 ```
 
-The console (logs, flashing) is UART0, the same cable. The other USB-C port is the chip's native USB (GPIO19/20), not used yet.
+The firmware console is UART0. Flashing is also supported through the native USB Serial/JTAG port
+(the currently connected `/dev/ttyACM0`); this does not mean UART console logs are available on that port.
 `sdkconfig` and `build/` are not committed; `sdkconfig.defaults` is. Local secrets go to `*.local.*` files (ignored by git).
 
 ## BLE pairing and authorization (2026-11-12)
@@ -67,7 +69,8 @@ is included. The same label remains valid after a normal reboot or owner release
 
 The prepared 0.3 firmware supports `status`, `policy`, and `tracking`: quiet state
 is persisted, tracking input/controller is implemented, servo PWM is disabled until
-calibrated. Audio and sensor drivers, siren and OTA are not implemented or advertised.
+calibrated. Audio and sensor drivers and siren are not implemented or advertised.
+OTA is implemented in 0.6.4; see below.
 Future MCP methods must reuse these authorization checks. NVS corruption fails
 closed instead of automatically erasing ownership. Private TLS keys remain in NVS;
 physical flash encryption/secure boot are not enabled in this prototype.
@@ -85,6 +88,30 @@ idf.py -B build-ble -DSDKCONFIG=sdkconfig.ble.local.config -p /dev/ttyACM0 -b 92
 
 ## Hardware roadmap
 
+### Direct charger control (0.7.1-charger-control)
+
+Timed owner/hub `POST /v1/charger` drives GPIO6 independently of the phone.
+Manual driver is standard; automatic battery-policy switching remains separately
+disabled until hardware verification. Boot and timeout return the output to off
+in this configuration. Details: [`docs/charger.md`](docs/charger.md).
+
+### Standard direct servo control (0.7.0-servo-control)
+
+Authenticated owner/hub HTTPS commands are part of the normal firmware, not a
+debug-only build or phone feature. `CONFIG_STAND_SERVO_MANUAL_CONTROL` defaults on;
+the stand wiring defaults to pan GPIO4 / tilt GPIO5. PWM stays off until an explicit
+command. Automatic face tracking still requires separate calibration and enablement.
+Manual pulses are limited to1450..1550us, for20..5000ms; centering uses1500us.
+Control works directly from the computer with the existing delegated hub credential.
+Protocol, limits and computer commands: [`docs/servos.md`](docs/servos.md).
+
+### OTA updates (0.6.4-ota)
+
+Owner-only pinned HTTPS upload, inactive-slot flashing, image/digest verification,
+explicit boot confirmation and automatic rollback are implemented.
+Protocol, build prerequisites and real-phone verification commands:
+[`docs/ota.md`](docs/ota.md).
+
 ### Tracking implementation (included in 0.4.0-battery, flashed 2026-11-13)
 
 Temporary bring-up Wi-Fi TX ceiling is 10 dBm (previously20) via
@@ -101,18 +128,44 @@ Status includes free internal bytes and the largest internal block for diagnosti
 
 Owner-only `POST /v1/tracking` accepts `{v:1,session,seq,ageMs,visible,x,y}`.
 X/Y are signed normalised face errors, X right and Y up. Lost target uses null X/Y.
-Each accepted new observation computes one bounded incremental correction; duplicates,
-older sequence numbers, retired sessions, out-of-range coordinates and age >500 ms
-are rejected. A 20 ms task smooths pulse changes and stops changing them after loss
-or expiry, retaining holding PWM. It never repeats a correction for the same frame.
+Duplicate/older sequence numbers, retired sessions, out-of-range coordinates and
+age >500 ms are rejected. A fixed 20 ms controller filters the most recent fresh
+error, limits correction velocity and acceleration, and stops movement immediately
+after loss or expiry, retaining holding PWM. Speed is independent of camera FPS.
 
-Servo configuration is in `idf.py menuconfig` → Androsaur tracking. GPIO defaults
-to -1, limits to the zero-width 1500…1500 us range, output disabled. Confirm GPIO,
+Boot defaults are in `idf.py menuconfig` → Androsaur tracking. GPIO defaults
+to 4 (pan) / 5 (tilt), limits to the zero-width 1500…1500 us range, output disabled. Confirm GPIO,
 neutral, actual safe pulse limits and axis directions before enabling output;
 the neutral pulse is applied at startup. Limits are not inferred from CAD angles.
-Gains currently start at 40 us/unit, max step20 us, slew100 us/s, deadband0.04 and
-must be tuned on the real mechanism. `tracking` capability means the input/controller
+`tracking` capability means the input/controller
 exists; `/v1/status.tracking.outputEnabled` states whether PWM is actually enabled.
+
+### Runtime tracking settings (0.8.0)
+
+In the hub: **Устройства → Подставка → Движение и слежение**. Owner/hub authenticated
+`POST /v1/tracking/settings` takes a complete object:
+
+```json
+{"enabled":true,"panRangeDeg":30,"tiltRangeDeg":15,"speedDegS":20,"stepDeg":1,"smoothingMs":300,"deadZonePercent":5,"panReverse":true,"tiltReverse":true}
+```
+
+This is an example for tuning, not an automatically applied preset. Ranges are
+half-spans about the configured neutral, pan 0.5–90°, tilt 0.5–45°. Speed 1–90°/s,
+maximum correction step 0.1–10° per 20 ms control cycle, smoothing 0–1000 ms, dead
+zone 1–20% of the normalized center-to-edge camera distance. Smoothing filters
+coordinate noise and limits acceleration to max speed / smoothing time. The step
+also limits speed: e.g. 0.1° per cycle permits at most 5°/s.
+
+Angles are nominal estimates using 500–2500 us for 180°, not measured shaft angles
+or a mechanical calibration. Check clearances/cables when extending the range.
+Both reversal flags are true on the current physical rig, as experimentally corrected.
+`POST /v1/tracking/control {"enabled":false|true}` stops/resumes without modifying
+the tuning. Settings are committed to NVS before acknowledgement and loaded at
+boot; the phone continues sending observations independently of the hub.
+`/v1/status.tracking` returns `settings`, `panDeg`, `tiltDeg`, `panUs`, `tiltUs`,
+`anglesEstimated`, and actual output state. Capability: `trackingSettings`.
+Narrowing limits returns an out-of-range axis slowly, at the selected speed.
+The existing timed manual API retains its separate 1450–1550 us service envelope.
 
 Host controller checks, no connected servo required:
 
@@ -128,7 +181,7 @@ resetting with `Brownout detector was triggered`; first restore stable power.
    Wi-Fi radio starts, heartbeat each 2 s without resets. Found on real hardware: the main task stack (3.5 KB by default)
    overflowed in the Wi-Fi scan; now 8 KB. The radio scan found no networks because the home network is 5 GHz only
    (channel 52); the ESP32-S3 needs a 2.4 GHz network.
-1. BLE setup, Wi-Fi station, mDNS and pinned HTTPS authorization implemented. OTA remains to be done.
+1. BLE setup, Wi-Fi station, mDNS, pinned HTTPS authorization and owner-only OTA implemented.
 2. Servos on GPIO4 (pan) and GPIO5 (tilt): LEDC PWM, smoothing, angle limits (docs/schematic.svg).
 3. I2S to PCM5102A (BCK 15, LRCK 16, DIN 17), volume ceiling about 15% of full scale before the first sound.
 4. Charger switch on GPIO6 (HW-532 module).

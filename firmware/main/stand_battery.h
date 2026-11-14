@@ -4,3 +4,4 @@
 void stand_battery_init(void);
 bool stand_battery_observe(const cJSON *packet);
 cJSON *stand_battery_status(void);
+bool stand_charger_manual(const cJSON *packet);

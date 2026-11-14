@@ -28,6 +28,7 @@
 #include "stand_tracking.h"
 #include "stand_battery.h"
 #include "stand_log.h"
+#include "stand_ota.h"
 
 static const char *TAG="stand";
 static bool mdns_started;
@@ -186,6 +187,7 @@ void app_main(void) {
     ESP_ERROR_CHECK(nvs_flash_init());
     stand_log_init();
     stand_log_event(STAND_LOG_BOOT, (int)esp_reset_reason(), -127, NULL);
+    stand_ota_init();
     bootloader_random_enable(); stand_security_init(); stand_setup_secret(setup_code);
     int verifier_len=0;
     ESP_ERROR_CHECK(esp_srp_gen_salt_verifier("androsaur",9,setup_code,32,&setup_salt,16,&setup_verifier,&verifier_len));

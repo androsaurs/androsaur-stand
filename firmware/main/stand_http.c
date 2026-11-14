@@ -3,16 +3,22 @@
 #include "stand_tracking.h"
 #include "stand_battery.h"
 #include "stand_log.h"
+#include "stand_ota.h"
+#include "esp_app_desc.h"
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include "esp_https_server.h"
 #include "esp_timer.h"
 #include "esp_heap_caps.h"
 #include "nvs.h"
 #include "cJSON.h"
 #include "sdkconfig.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 static httpd_handle_t server;
 static bool quiet;
+static unsigned startup_stack_free;
 static bool auth(httpd_req_t *req, bool owner) {
     char header[80];
     if (httpd_req_get_hdr_value_str(req, "Authorization", header, sizeof(header)) != ESP_OK ||
@@ -29,8 +35,8 @@ static esp_err_t json(httpd_req_t *req, cJSON *obj) {
     esp_err_t err = httpd_resp_sendstr(req, text); free(text); return err;
 }
 static cJSON *body(httpd_req_t *req) {
-    if (req->content_len < 2 || req->content_len > 256) return NULL;
-    char buf[257]; size_t n = 0;
+    if (req->content_len < 2 || req->content_len > 512) return NULL;
+    char buf[513]; size_t n = 0;
     while (n < req->content_len) { int got = httpd_req_recv(req, buf+n, req->content_len-n); if (got<=0) return NULL; n+=got; }
     buf[n]=0; return cJSON_ParseWithLength(buf,n);
 }
@@ -38,18 +44,30 @@ static esp_err_t status(httpd_req_t *req) {
     if (!auth(req, false)) return ESP_OK;
     cJSON *obj=cJSON_CreateObject(); cJSON_AddStringToObject(obj,"id",stand_id);
     char phone[65]; stand_owner_id(phone); cJSON_AddStringToObject(obj,"phoneId",phone);
-    cJSON_AddStringToObject(obj,"firmware","0.5.0-persistent-logs"); cJSON_AddNumberToObject(obj,"protocol",1);
+    cJSON_AddStringToObject(obj,"firmware",esp_app_get_description()->version); cJSON_AddNumberToObject(obj,"protocol",1);
     cJSON_AddNumberToObject(obj,"phyTxLimitDbm",CONFIG_ESP_PHY_MAX_WIFI_TX_POWER);
     cJSON_AddNumberToObject(obj,"freeInternalBytes",heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
     cJSON_AddNumberToObject(obj,"largestInternalBlockBytes",heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+    cJSON_AddNumberToObject(obj,"httpsStartupStackFreeBytes",startup_stack_free);
+    cJSON_AddNumberToObject(obj,"eventTaskStackBytes",CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE);
     cJSON_AddNumberToObject(obj,"uptimeS",esp_timer_get_time()/1000000); cJSON_AddBoolToObject(obj,"quiet",quiet);
     cJSON *caps=cJSON_AddArrayToObject(obj,"capabilities");
     cJSON_AddItemToArray(caps,cJSON_CreateString("status")); cJSON_AddItemToArray(caps,cJSON_CreateString("policy"));
     cJSON_AddItemToArray(caps,cJSON_CreateString("tracking"));
+    cJSON_AddItemToArray(caps,cJSON_CreateString("trackingSettings"));
     cJSON_AddItemToObject(obj,"tracking",stand_tracking_status());
+    if (stand_tracking_center_available()) {
+        cJSON_AddItemToArray(caps,cJSON_CreateString("servoCenter"));
+        cJSON_AddItemToArray(caps,cJSON_CreateString("servos"));
+    }
     cJSON_AddItemToArray(caps,cJSON_CreateString("battery"));
     cJSON_AddItemToObject(obj,"battery",stand_battery_status());
+#ifdef CONFIG_STAND_CHARGER_MANUAL_CONTROL
+    cJSON_AddItemToArray(caps,cJSON_CreateString("charger"));
+#endif
     cJSON_AddItemToArray(caps,cJSON_CreateString("logs"));
+    cJSON_AddItemToArray(caps,cJSON_CreateString("ota"));
+    cJSON_AddItemToObject(obj,"ota",stand_ota_status());
     return json(req,obj);
 }
 static esp_err_t logs(httpd_req_t *req) {
@@ -73,6 +91,61 @@ static esp_err_t observation(httpd_req_t *req, bool battery) {
 }
 static esp_err_t tracking(httpd_req_t *req) { return observation(req,false); }
 static esp_err_t battery(httpd_req_t *req) { return observation(req,true); }
+static esp_err_t tracking_settings(httpd_req_t *req) {
+    if (!auth(req,false)) return ESP_FAIL;
+    cJSON *packet=body(req); bool ok=stand_tracking_configure(packet); cJSON_Delete(packet);
+    if (!ok) return httpd_resp_send_err(req,HTTPD_400_BAD_REQUEST,"invalid tracking settings or storage failure");
+    return status(req);
+}
+static esp_err_t tracking_control(httpd_req_t *req) {
+    if (!auth(req,false)) return ESP_FAIL;
+    cJSON *packet=body(req); bool ok=stand_tracking_enable(packet); cJSON_Delete(packet);
+    if (!ok) return httpd_resp_send_err(req,HTTPD_400_BAD_REQUEST,"invalid tracking control or storage failure");
+    return status(req);
+}
+static esp_err_t charger(httpd_req_t *req) {
+    if (!auth(req,false)) return ESP_FAIL;
+    cJSON *packet=body(req); bool ok=stand_charger_manual(packet); cJSON_Delete(packet);
+    if (!ok) return httpd_resp_send_err(req,HTTPD_400_BAD_REQUEST,"require enabled:boolean,durationMs:1000..120000 or mode:auto");
+    cJSON *state=stand_battery_status();
+    stand_log_event(STAND_LOG_CHARGER_COMMAND,0,-127,cJSON_GetObjectItemCaseSensitive(state,"controlMode")->valuestring);
+    cJSON_Delete(state);
+    return status(req);
+}
+static esp_err_t servo_center(httpd_req_t *req) {
+    if (!auth(req,false)) return ESP_FAIL;
+    cJSON *packet=body(req); bool valid=cJSON_IsObject(packet); cJSON_Delete(packet);
+    if (!valid || !stand_tracking_center()) return httpd_resp_send_err(req,HTTPD_400_BAD_REQUEST,"centering unavailable");
+    stand_log_event(STAND_LOG_SERVO_CENTER,0,-127,"1500us 5s both");
+    return status(req);
+}
+static esp_err_t servo_stop(httpd_req_t *req) {
+    if (!auth(req,false)) return ESP_FAIL;
+    cJSON *packet=body(req); bool valid=cJSON_IsObject(packet); cJSON_Delete(packet);
+    if (!valid || !stand_tracking_stop()) return httpd_resp_send_err(req,HTTPD_400_BAD_REQUEST,"invalid stop");
+    return status(req);
+}
+static esp_err_t servo_manual(httpd_req_t *req) {
+    if (!auth(req,false)) return ESP_FAIL;
+    cJSON *packet=body(req); bool ok=stand_tracking_manual(packet);
+    char detail[24]={0};
+    if (ok) snprintf(detail,sizeof(detail),"%d/%dus %dms",
+        cJSON_GetObjectItemCaseSensitive(packet,"panUs")->valueint,
+        cJSON_GetObjectItemCaseSensitive(packet,"tiltUs")->valueint,
+        cJSON_GetObjectItemCaseSensitive(packet,"durationMs")->valueint);
+    cJSON_Delete(packet);
+    if (!ok) return httpd_resp_send_err(req,HTTPD_400_BAD_REQUEST,"require integer panUs/tiltUs 1450..1550, durationMs 20..5000");
+    stand_log_event(STAND_LOG_SERVO_MANUAL,0,-127,detail);
+    return status(req);
+}
+static esp_err_t ota(httpd_req_t *req) {
+    if (!auth(req,true)) return ESP_FAIL;
+    return stand_ota_upload(req);
+}
+static esp_err_t ota_confirm(httpd_req_t *req) {
+    if (!auth(req,true)) return ESP_OK;
+    return stand_ota_confirm(req);
+}
 static esp_err_t policy(httpd_req_t *req) {
     if (!auth(req,false)) return ESP_OK;
     cJSON *obj=body(req), *value=cJSON_GetObjectItemCaseSensitive(obj,"quiet");
@@ -89,13 +162,24 @@ void stand_http_start(void) {
     quiet=value!=0;
     httpd_ssl_config_t cfg=HTTPD_SSL_CONFIG_DEFAULT(); cfg.port_secure=8443;
     cfg.httpd.stack_size=8192; cfg.httpd.max_open_sockets=5; cfg.httpd.lru_purge_enable=true;
+    cfg.httpd.max_uri_handlers=14;
+    cfg.httpd.recv_wait_timeout=10;
     cfg.servercert=(const unsigned char *)stand_cert; cfg.servercert_len=strlen(stand_cert)+1;
     cfg.prvtkey_pem=(const unsigned char *)stand_private_key; cfg.prvtkey_len=strlen(stand_private_key)+1;
     ESP_ERROR_CHECK(httpd_ssl_start(&server,&cfg));
     httpd_uri_t routes[]={ {.uri="/v1/status",.method=HTTP_GET,.handler=status},
         {.uri="/v1/logs",.method=HTTP_GET,.handler=logs},
+        {.uri="/v1/ota",.method=HTTP_POST,.handler=ota},
+        {.uri="/v1/ota/confirm",.method=HTTP_POST,.handler=ota_confirm},
+        {.uri="/v1/servos/center",.method=HTTP_POST,.handler=servo_center},
+        {.uri="/v1/servos/stop",.method=HTTP_POST,.handler=servo_stop},
+        {.uri="/v1/servos",.method=HTTP_POST,.handler=servo_manual},
+        {.uri="/v1/charger",.method=HTTP_POST,.handler=charger},
         {.uri="/v1/hub",.method=HTTP_POST,.handler=hub}, {.uri="/v1/policy",.method=HTTP_POST,.handler=policy},
         {.uri="/v1/tracking",.method=HTTP_POST,.handler=tracking},
+        {.uri="/v1/tracking/settings",.method=HTTP_POST,.handler=tracking_settings},
+        {.uri="/v1/tracking/control",.method=HTTP_POST,.handler=tracking_control},
         {.uri="/v1/battery",.method=HTTP_POST,.handler=battery} };
     for (size_t i=0;i<sizeof(routes)/sizeof(routes[0]);i++) ESP_ERROR_CHECK(httpd_register_uri_handler(server,&routes[i]));
+    startup_stack_free=uxTaskGetStackHighWaterMark(NULL);
 }

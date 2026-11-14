@@ -7,11 +7,13 @@ typedef struct {
 } tracking_axis_config;
 typedef struct {
     tracking_axis_config pan, tilt;
-    float gain_us, max_step_us, slew_us_per_s, deadband;
+    float gain_us, max_step_us, slew_us_per_s, deadband, smoothing_ms;
 } tracking_config;
 typedef struct {
     tracking_config config;
     float pan_us, tilt_us, pan_target, tilt_target, x, y;
+    float filtered_x, filtered_y, pan_velocity, tilt_velocity;
+    bool filter_ready;
     bool visible, limited, received;
     int64_t received_ms, last_tick_ms;
     int age_ms;

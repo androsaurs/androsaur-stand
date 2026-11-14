@@ -44,6 +44,14 @@ static const char *event_name(uint16_t event) {
         case STAND_LOG_WIFI_DISCONNECTED: return "wifi_disconnected";
         case STAND_LOG_GOT_IP: return "got_ip";
         case STAND_LOG_HTTPS_READY: return "https_ready";
+        case STAND_LOG_OTA_START: return "ota_start";
+        case STAND_LOG_OTA_FAILED: return "ota_failed";
+        case STAND_LOG_OTA_STAGED: return "ota_staged";
+        case STAND_LOG_OTA_CONFIRMED: return "ota_confirmed";
+        case STAND_LOG_OTA_ROLLBACK: return "ota_rollback";
+        case STAND_LOG_SERVO_CENTER: return "servo_center";
+        case STAND_LOG_SERVO_MANUAL: return "servo_manual";
+        case STAND_LOG_CHARGER_COMMAND: return "charger_command";
         default: return "unknown";
     }
 }
