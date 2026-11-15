@@ -14,6 +14,7 @@ CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
 # The UART port of the board is the console (UART0): logs and flashing over the same cable.
 CONFIG_ESP_CONSOLE_UART_DEFAULT=y
 CONFIG_FREERTOS_HZ=1000
+CONFIG_LWIP_MAX_SOCKETS=16
 CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
 # Reserve room for HTTPS initialization and diagnostic NVS writes in IP events.
 CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE=6144

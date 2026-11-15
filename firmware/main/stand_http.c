@@ -4,6 +4,7 @@
 #include "stand_battery.h"
 #include "stand_log.h"
 #include "stand_ota.h"
+#include "stand_observations.h"
 #include "esp_app_desc.h"
 #include <string.h>
 #include <stdlib.h>
@@ -37,7 +38,13 @@ static esp_err_t json(httpd_req_t *req, cJSON *obj) {
 static cJSON *body(httpd_req_t *req) {
     if (req->content_len < 2 || req->content_len > 512) return NULL;
     char buf[513]; size_t n = 0;
-    while (n < req->content_len) { int got = httpd_req_recv(req, buf+n, req->content_len-n); if (got<=0) return NULL; n+=got; }
+    int64_t deadline=esp_timer_get_time()+1000000;
+    while (n < req->content_len) {
+        if (esp_timer_get_time()>deadline) return NULL;
+        int got=httpd_req_recv(req,buf+n,req->content_len-n);
+        if (got<=0 || esp_timer_get_time()>deadline) return NULL;
+        n+=(size_t)got;
+    }
     buf[n]=0; return cJSON_ParseWithLength(buf,n);
 }
 static esp_err_t status(httpd_req_t *req) {
@@ -51,6 +58,8 @@ static esp_err_t status(httpd_req_t *req) {
     cJSON_AddNumberToObject(obj,"httpsStartupStackFreeBytes",startup_stack_free);
     cJSON_AddNumberToObject(obj,"eventTaskStackBytes",CONFIG_ESP_SYSTEM_EVENT_TASK_STACK_SIZE);
     cJSON_AddNumberToObject(obj,"uptimeS",esp_timer_get_time()/1000000); cJSON_AddBoolToObject(obj,"quiet",quiet);
+    cJSON_AddNumberToObject(obj,"observationPort",8444);
+    cJSON_AddItemToObject(obj,"observationTransport",stand_observations_status());
     cJSON *caps=cJSON_AddArrayToObject(obj,"capabilities");
     cJSON_AddItemToArray(caps,cJSON_CreateString("status")); cJSON_AddItemToArray(caps,cJSON_CreateString("policy"));
     cJSON_AddItemToArray(caps,cJSON_CreateString("tracking"));
@@ -163,10 +172,13 @@ void stand_http_start(void) {
     httpd_ssl_config_t cfg=HTTPD_SSL_CONFIG_DEFAULT(); cfg.port_secure=8443;
     cfg.httpd.stack_size=8192; cfg.httpd.max_open_sockets=5; cfg.httpd.lru_purge_enable=true;
     cfg.httpd.max_uri_handlers=14;
-    cfg.httpd.recv_wait_timeout=10;
+    cfg.httpd.recv_wait_timeout=1;
+    cfg.httpd.send_wait_timeout=1;
+    cfg.tls_handshake_timeout_ms=1500;
     cfg.servercert=(const unsigned char *)stand_cert; cfg.servercert_len=strlen(stand_cert)+1;
     cfg.prvtkey_pem=(const unsigned char *)stand_private_key; cfg.prvtkey_len=strlen(stand_private_key)+1;
     ESP_ERROR_CHECK(httpd_ssl_start(&server,&cfg));
+    stand_observations_start();
     httpd_uri_t routes[]={ {.uri="/v1/status",.method=HTTP_GET,.handler=status},
         {.uri="/v1/logs",.method=HTTP_GET,.handler=logs},
         {.uri="/v1/ota",.method=HTTP_POST,.handler=ota},

@@ -3,6 +3,7 @@
 #include "cJSON.h"
 void stand_tracking_init(void);
 bool stand_tracking_observe(const cJSON *packet);
+bool stand_tracking_observe_delayed(const cJSON *packet, int receive_delay_ms);
 cJSON *stand_tracking_status(void);
 bool stand_tracking_center_available(void);
 bool stand_tracking_center(void);

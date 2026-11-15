@@ -142,6 +142,10 @@ exists; `/v1/status.tracking.outputEnabled` states whether PWM is actually enabl
 
 ### Runtime tracking settings (0.8.0)
 
+Firmware 0.9.0 and Android 0.15.0 isolate the observation stream from management
+HTTPS handshakes/slow requests on a separate pinned, owner-only endpoint. See
+[observation isolation, deadlines and timing diagnostics](docs/observations.md).
+
 In the hub: **Устройства → Подставка → Движение и слежение**. Owner/hub authenticated
 `POST /v1/tracking/settings` takes a complete object:
 
