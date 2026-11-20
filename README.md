@@ -6,8 +6,14 @@ A motorized stand for an old Android phone: two MG996R servos (pan and tilt), a 
 phone holder and a 125 × 125 mm electronics enclosure with a speaker, an ESP32, an amplifier and a power supply.
 Part of the [Androsaur](https://github.com/androsaurs) project: the stand turns the phone with the companion on its screen toward the person.
 
-The model is parametric, written in **Python / build123d** (BRep, not a mesh) and lives in [`cadpy/`](cadpy/).
-The former FreeCAD model was removed from the working tree; it stays in the git history (commit `9d254f3`).
+The project currently has two CAD variants:
+
+- [**Python / build123d**](cadpy/) is the established parametric BRep workflow for the viewer, geometry checks and print exports.
+- [**SolidCraft**](solidcraft/README.md) is a parallel experiment. It builds a separate editable assembly from build123d geometry, with native pan and tilt joints and a parametric phone grip.
+
+Both variants are kept in the repository while we evaluate which workflow suits the project better. The choice is still open.
+
+The former FreeCAD model remains in the Git history (commit `9d254f3`).
 
 ![Assembly](docs/img/assembly.png)
 

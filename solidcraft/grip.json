@@ -1,0 +1,217 @@
+{
+  "commands": [
+    {
+      "command": "parameters.add",
+      "params": {
+        "name": "phone_width",
+        "expression": "76.3 mm"
+      }
+    },
+    {
+      "command": "parameters.add",
+      "params": {
+        "name": "phone_thickness",
+        "expression": "9 mm"
+      }
+    },
+    {
+      "command": "parameters.add",
+      "params": {
+        "name": "side_clearance",
+        "expression": "0.5 mm"
+      }
+    },
+    {
+      "command": "parameters.add",
+      "params": {
+        "name": "thickness_clearance",
+        "expression": "0.8 mm"
+      }
+    },
+    {
+      "command": "parameters.add",
+      "params": {
+        "name": "outer_width",
+        "expression": "88 mm"
+      }
+    },
+    {
+      "command": "parameters.add",
+      "params": {
+        "name": "grip_thickness",
+        "expression": "10 mm"
+      }
+    },
+    {
+      "command": "parameters.add",
+      "params": {
+        "name": "datum",
+        "expression": "0 mm"
+      }
+    },
+    {
+      "command": "parameters.add",
+      "params": {
+        "name": "slot_shift",
+        "expression": "phone_thickness + thickness_clearance - 9 mm"
+      }
+    },
+    {
+      "command": "parameters.add",
+      "params": {
+        "name": "slot_width",
+        "expression": "phone_width + 2 * side_clearance"
+      }
+    },
+    {
+      "command": "parameters.add",
+      "params": {
+        "name": "side_wall",
+        "expression": "(outer_width - slot_width) / 2"
+      }
+    },
+    {
+      "command": "sketch.create",
+      "params": {
+        "plane": "XY",
+        "name": "Grip profile"
+      }
+    },
+    {
+      "command": "sketch.line",
+      "params": {
+        "points": [
+          [
+            "datum + 0 mm",
+            "datum + 6.76 mm"
+          ],
+          [
+            "datum + 0 mm",
+            "21.6 mm + slot_shift"
+          ],
+          [
+            "datum + 2 mm",
+            "23.6 mm + slot_shift"
+          ],
+          [
+            "datum + 18.5 mm",
+            "23.6 mm + slot_shift"
+          ],
+          [
+            "datum + 18.5 mm",
+            "21.1 mm + slot_shift"
+          ],
+          [
+            "side_wall",
+            "21.1 mm + slot_shift"
+          ],
+          [
+            "side_wall",
+            "datum + 9.05 mm"
+          ],
+          [
+            "datum + 18.53 mm",
+            "datum + 5 mm"
+          ],
+          [
+            "datum + 22.08 mm",
+            "datum + 5 mm"
+          ],
+          [
+            "datum + 28.28 mm",
+            "datum + 11.2 mm"
+          ],
+          [
+            "datum + 28.28 mm",
+            "datum + 5 mm"
+          ],
+          [
+            "outer_width - (28.28 mm)",
+            "datum + 5 mm"
+          ],
+          [
+            "outer_width - (28.28 mm)",
+            "datum + 11.2 mm"
+          ],
+          [
+            "outer_width - (22.08 mm)",
+            "datum + 5 mm"
+          ],
+          [
+            "outer_width - (18.53 mm)",
+            "datum + 5 mm"
+          ],
+          [
+            "outer_width - (side_wall)",
+            "datum + 9.05 mm"
+          ],
+          [
+            "outer_width - (side_wall)",
+            "21.1 mm + slot_shift"
+          ],
+          [
+            "outer_width - (18.5 mm)",
+            "21.1 mm + slot_shift"
+          ],
+          [
+            "outer_width - (18.5 mm)",
+            "23.6 mm + slot_shift"
+          ],
+          [
+            "outer_width - (2 mm)",
+            "23.6 mm + slot_shift"
+          ],
+          [
+            "outer_width - (0 mm)",
+            "21.6 mm + slot_shift"
+          ],
+          [
+            "outer_width - (0 mm)",
+            "datum + 6.76 mm"
+          ],
+          [
+            "outer_width - 1.94 mm",
+            "datum + 4.26 mm"
+          ],
+          [
+            "outer_width - 18.53 mm",
+            "datum + 0 mm"
+          ],
+          [
+            "datum + 18.53 mm",
+            "datum + 0 mm"
+          ],
+          [
+            "datum + 1.94 mm",
+            "datum + 4.26 mm"
+          ]
+        ],
+        "closed": true,
+        "infer": false
+      }
+    },
+    {
+      "command": "sketch.solve",
+      "params": {}
+    },
+    {
+      "command": "sketch.finish",
+      "params": {}
+    },
+    {
+      "command": "solid.extrude",
+      "params": {
+        "distance": "grip_thickness",
+        "operation": "new",
+        "name": "Grip extrusion"
+      }
+    },
+    {
+      "command": "body.rename",
+      "params": {
+        "body": "Body1",
+        "name": "grip"
+      }
+    }
+  ]
+}

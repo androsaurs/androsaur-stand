@@ -6,9 +6,13 @@
 Перед работой прочитать README.md, docs/design.md, docs/enclosure.md, docs/part-names.md, docs/interfaces.md,
 docs/model-guide.md и docs/open-issues.md. Требования — docs/requirements.md.
 
-Единственный источник геометрии — код в `cadpy/` (`pantilt.py`, `clip_holder.py`, `enclosure.py`, `speaker.py`, `esp32.py`,
+Источник геометрии рабочего прототипа — код в `cadpy/` (`pantilt.py`, `clip_holder.py`, `enclosure.py`, `speaker.py`, `esp32.py`,
 `amp.py`); STEP в `exports/` производный. Просмотр: `cadpy/viewer.sh`; проверка пересечений: `cadpy/check.py -2 45 90 100`;
 экспорт для FreeCAD: `cadpy/export.py`; картинки для документации: `cadpy/shots.py`.
+
+Второй CAD-вариант — [эксперимент SolidCraft](solidcraft/README.md). Его сборка, нативные детали и проверки
+хранятся в `solidcraft/` параллельно с build123d. Выбор CAD-процесса ещё открыт.
+Производственные экспорты пока строятся из `cadpy/`.
 
 При просьбе запустить вьювер обязательно прочитать `docs/viewer.md`.
 Запускать `cadpy/viewer.sh`: он сохраняет модель для позднего открытия и обновления вкладок.
