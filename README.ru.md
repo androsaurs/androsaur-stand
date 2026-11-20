@@ -13,8 +13,6 @@
 
 Оба варианта хранятся в репозитории. Решение о том, какой CAD-процесс лучше подходит проекту, ещё не принято.
 
-Прежняя модель FreeCAD осталась в истории Git (коммит `9d254f3`).
-
 ![Сборка](docs/img/assembly.png)
 
 ## Состояние
@@ -41,7 +39,7 @@ cd cadpy
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ./viewer.sh                       # просмотрщик http://127.0.0.1:3939/viewer, перерисовка при сохранении view.py
 .venv/bin/python check.py -2 45 90 100   # проверка пересечений при наклоне
-.venv/bin/python export.py        # STEP для FreeCAD и друзей -> exports/androsaur-stand-assembly.step
+.venv/bin/python export.py        # STEP сборки -> exports/androsaur-stand-assembly.step
 .venv/bin/python export_stl.py    # STL деталей механизма и держателя для печати -> exports/stl/
 .venv/bin/python shots.py         # картинки для документации -> docs/img/
 ```
@@ -61,7 +59,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 | [`cadpy/check.py`](cadpy/check.py), [`pancheck.py`](cadpy/pancheck.py) | Проверка пересечений при наклоне и повороте |
 | [`cadpy/view.py`](cadpy/view.py), [`palette.py`](cadpy/palette.py) | Живой просмотр и цвета деталей |
 | [`cadpy/export.py`](cadpy/export.py), [`shots.py`](cadpy/shots.py) | Экспорт в STEP, картинки |
-| [`exports/`](exports/) | STEP сборки и проект FreeCAD с той же геометрией (для просмотра и обмена); [`exports/stl/`](exports/stl/): STL деталей для печати |
+| [`exports/`](exports/) | STEP сборки для обмена между CAD-системами. В [`exports/stl/`](exports/stl/) лежат STL деталей для печати. |
 | [`references/`](references/README.md) | Источники сторонних материалов (micromet, MG996R, держатель) |
 | [`docs/`](docs/) | Документация |
 

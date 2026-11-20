@@ -13,8 +13,6 @@ The project currently has two CAD variants:
 
 Both variants are kept in the repository while we evaluate which workflow suits the project better. The choice is still open.
 
-The former FreeCAD model remains in the Git history (commit `9d254f3`).
-
 ![Assembly](docs/img/assembly.png)
 
 ## Status
@@ -41,7 +39,7 @@ cd cadpy
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ./viewer.sh                       # viewer at http://127.0.0.1:3939/viewer, redraws when view.py is saved
 .venv/bin/python check.py -2 45 90 100   # intersection check while tilting
-.venv/bin/python export.py        # STEP for FreeCAD and friends -> exports/androsaur-stand-assembly.step
+.venv/bin/python export.py        # assembly STEP -> exports/androsaur-stand-assembly.step
 .venv/bin/python export_stl.py    # STL of the mechanism and holder parts for printing -> exports/stl/
 .venv/bin/python shots.py         # pictures for the documentation -> docs/img/
 ```
@@ -60,7 +58,7 @@ Running the viewer, automatic loading after a tab refresh: [docs/viewer.md](docs
 | [`cadpy/check.py`](cadpy/check.py), [`pancheck.py`](cadpy/pancheck.py) | Intersection checks while tilting and panning |
 | [`cadpy/view.py`](cadpy/view.py), [`palette.py`](cadpy/palette.py) | Live view and part colors |
 | [`cadpy/export.py`](cadpy/export.py), [`shots.py`](cadpy/shots.py) | STEP export, pictures |
-| [`exports/`](exports/) | The assembly STEP and a FreeCAD project with the same geometry (for viewing and exchange); [`exports/stl/`](exports/stl/): STL of the parts for printing |
+| [`exports/`](exports/) | Assembly STEP for CAD exchange. [`exports/stl/`](exports/stl/) contains STL files for printing. |
 | [`references/`](references/README.md) | Sources of third-party material (micromet, MG996R, the holder) |
 | [`docs/`](docs/) | Documentation |
 
